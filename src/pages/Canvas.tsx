@@ -71,11 +71,14 @@ function CanvasInner({ projectId }: { projectId: string }) {
     }
   }, [onNodesChange, writeLayout])
 
-  const handleNodesDelete = useCallback((deleted: Node[]) => {
-    for (const node of deleted) {
-      if (!confirm(`Delete frame "${(node.data as { name?: string }).name ?? node.id}"?`)) continue
+  const handleBeforeDelete = useCallback(async ({ nodes: deleted }: { nodes: Node[] }) => {
+    const confirmed = deleted.filter(node =>
+      confirm(`Delete frame "${(node.data as { name?: string }).name ?? node.id}"?`)
+    )
+    for (const node of confirmed) {
       deleteFrame(projectId, node.id).catch(() => {})
     }
+    return false
   }, [projectId])
 
   const nodesWithProject = useMemo(
@@ -112,7 +115,7 @@ function CanvasInner({ projectId }: { projectId: string }) {
         nodes={nodesWithProject}
         edges={[]}
         onNodesChange={wrappedOnNodesChange}
-        onNodesDelete={handleNodesDelete}
+        onBeforeDelete={handleBeforeDelete}
         nodeTypes={nodeTypes}
         nodesConnectable={false}
         fitView

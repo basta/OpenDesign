@@ -1,7 +1,7 @@
 import { memo, useCallback, useRef } from 'react'
 import { NodeResizer, useReactFlow, type NodeProps } from '@xyflow/react'
 import type { HtmlFrameData } from './HtmlFrameShape'
-import { patchFrame } from '../lib/api'
+import { deleteFrame, patchFrame } from '../lib/api'
 
 const TITLE_BAR_HEIGHT = 32
 
@@ -25,6 +25,12 @@ function HtmlFrameNodeComponent({ id, data, selected }: NodeProps) {
       patchFrame(frameData.projectId, id, { name: newName }).catch(() => {})
     }
   }, [id, frameData.name, frameData.projectId, setNodes])
+
+  const handleDelete = useCallback(() => {
+    if (!frameData.projectId) return
+    if (!confirm(`Delete frame "${frameData.name}"?`)) return
+    deleteFrame(frameData.projectId, id).catch(() => {})
+  }, [id, frameData.name, frameData.projectId])
 
   return (
     <>
@@ -68,21 +74,41 @@ function HtmlFrameNodeComponent({ id, data, selected }: NodeProps) {
           >
             {frameData.name}
           </span>
-          <button
-            onClick={handleRefresh}
-            style={{
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              fontSize: 14,
-              color: '#666',
-              padding: '2px 6px',
-              borderRadius: 4,
-            }}
-            title="Refresh"
-          >
-            ↻
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <button
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={handleRefresh}
+              style={{
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                fontSize: 14,
+                color: '#666',
+                padding: '2px 6px',
+                borderRadius: 4,
+              }}
+              title="Refresh"
+            >
+              ↻
+            </button>
+            <button
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={handleDelete}
+              style={{
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                fontSize: 16,
+                lineHeight: 1,
+                color: '#666',
+                padding: '2px 6px',
+                borderRadius: 4,
+              }}
+              title="Delete"
+            >
+              ×
+            </button>
+          </div>
         </div>
         <iframe
           ref={iframeRef}
