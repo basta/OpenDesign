@@ -27,6 +27,8 @@ npm run dev
 
 Open <http://localhost:5173>. Create a project, then describe a frame to your agent.
 
+![Invoking the /frame skill in Claude Code](docs/skill-invocation.png)
+
 **Custom projects root:**
 
 ```bash
