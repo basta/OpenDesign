@@ -68,6 +68,7 @@ Write `<project-path>/<id>.html`.
 Delegate the actual design and implementation to the `frontend-design` skill — it owns aesthetic decisions (typography, color, motion, composition, backgrounds). Feed it:
 - The frame's purpose (from the user's description, framed by PROJECT.md).
 - The committed aesthetic from DESIGN.md (or, if first frame, the direction you're about to commit).
+- If this is the first frame being created, make sure the frontend-design skill asks the user questions to clarify the aesthetic direction before committing to it. This will inform the design of the first frame and all subsequent frames.
 - The hard constraints below.
 
 Hard constraints (these override stylistic preferences):
