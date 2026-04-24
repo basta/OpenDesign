@@ -1,8 +1,8 @@
 # OpenDesign
 
-A Figma-like canvas for HTML. Each frame is a self-contained HTML file; you drag them around, resize them, and edit them from either the canvas or your text editor — changes sync both ways.
+An open-source, filesystem-native design tool that any AI coding agent can drive. Each frame is a self-contained HTML file; you drag them around, resize them, and edit them from either the canvas or your text editor — changes sync both ways.
 
-Designed to be driven by AI coding agents: describe a screen, get a live frame on the canvas.
+An alternative to closed-source, cloud-hosted tools like Claude Design and Google Stitch. MIT licensed, runs locally, works with any agent.
 
 Built on React, [`@xyflow/react`](https://reactflow.dev), and Vite.
 
@@ -47,12 +47,15 @@ Defaults to `./projects/` (gitignored).
 ```
 <project-id>/
   PROJECT.md                 project idea + frames list
-  DESIGN.md                  committed aesthetic direction
-  design-reference.html      auto-generated live view of DESIGN.md
+  DESIGN.md                  design tokens (Google design.md spec — YAML front-matter)
+  FEEL.md                    motion, composition, atmospherics (prose)
+  design-reference.html      auto-generated live view of DESIGN.md + FEEL.md
   frames.json                [{ id, name, file }]
   .opendesign/layout.json    { [frameId]: { x, y, w, h } }
   <frame-id>.html            one file per frame, fully self-contained
 ```
+
+`DESIGN.md` follows Google's [`design.md`](https://github.com/nicholasgasior/design.md) spec — YAML front-matter tokens (colors, typography, rounded, spacing, components) plus canonical prose sections. `FEEL.md` holds the creative dimensions the spec doesn't cover: motion, spatial composition, and backgrounds. Both are seeded on project creation and maintained by the `/frame` skill.
 
 **Frames** are single HTML files with inline CSS/JS — no build step, no external deps (unless you want them). The canvas renders them via iframes.
 
@@ -68,6 +71,11 @@ Mounted at `/api` on the dev server.
 | `GET` / `POST` | `/api/projects` | List / create projects |
 | `GET` | `/api/projects/:id/manifest` | Read `frames.json` |
 | `GET` | `/api/projects/:id/layout` | Read `.opendesign/layout.json` |
+| `GET` | `/api/projects/:id/design` | Parsed DESIGN.md tokens + sections, plus FEEL.md |
+| `GET` | `/api/projects/:id/tokens.css` | CSS variables generated from design tokens |
+| `PATCH` | `/api/projects/:id/design/tokens` | Deep-merge token patches into DESIGN.md |
+| `GET` | `/api/projects/:id/suggestions` | List design suggestions |
+| `DELETE` | `/api/projects/:id/suggestions/:id` | Dismiss a suggestion |
 | `POST` | `/api/projects/:id/frames` | Create frame (writes HTML + manifest + layout atomically) |
 | `PATCH` | `/api/projects/:id/frames/:frameId` | Rename / change file |
 | `DELETE` | `/api/projects/:id/frames/:frameId[?deleteFile=true]` | Delete frame |
@@ -78,11 +86,13 @@ Frame HTML is served at `/frames/:projectId/:file` for iframe loading.
 
 ## Skills for AI agents
 
-Three [Claude Code](https://claude.ai/code) skills live in `.claude/skills/` (mirrored in `skills/`):
+Five [Claude Code](https://claude.ai/code) skills live in `.claude/skills/` (mirrored in `skills/`):
 
-- **`/frame`** — create or update a single frame. Reads `PROJECT.md`/`DESIGN.md`, picks a non-overlapping position, writes the HTML, and updates the manifest.
+- **`/frame`** — create or update a single frame. Reads `PROJECT.md`/`DESIGN.md`/`FEEL.md`, picks a non-overlapping position, writes the HTML, and updates the manifest.
 - **`/frontend-design`** — design advisor. Commits a project to a bold aesthetic direction (typography, color, motion, composition). Invoked by `/frame` for fresh projects; can also be used standalone.
-- **`/port`** — port an existing codebase into an OpenDesign project, one frame per screen. Explores the source, extracts aesthetic signals, seeds `PROJECT.md`/`DESIGN.md`, then spawns parallel subagents to port each screen. Supports `--redesign` (fresh direction) and `--append` (extend existing project).
+- **`/port`** — port an existing codebase into an OpenDesign project, one frame per screen. Explores the source, extracts aesthetic signals, seeds `PROJECT.md`/`DESIGN.md`/`FEEL.md`, then spawns parallel subagents to port each screen. Supports `--redesign` (fresh direction) and `--append` (extend existing project).
+- **`/alternatives`** — generate N parallel design takes on a single frame for side-by-side comparison. Auto-picks mode: *execution-shopping* (layout/composition variants within the committed aesthetic) when `DESIGN.md` is filled, or *direction-shopping* (each alt commits its own aesthetic) when empty. `--wild` forces direction-shopping; `--count N` controls how many (default 3).
+- **`/suggest`** — generate AI-curated design tweak suggestions (palette or typography variants). Drops named variants into the Tokens panel where you can preview and apply them with one click.
 
 The same skills are mirrored for other CLI coding agents so you can use whichever you prefer:
 
@@ -94,6 +104,10 @@ The same skills are mirrored for other CLI coding agents so you can use whicheve
 | [Gemini CLI](https://geminicli.com) | `GEMINI.md` | `.gemini/commands/<name>.toml` |
 
 `AGENTS.md` and `GEMINI.md` are symlinks to `CLAUDE.md`, and `.opencode/commands/*.md` are symlinks to the Claude `SKILL.md` files — they stay in sync automatically. The Gemini TOML files are hand-maintained copies because the format differs.
+
+## Tokens panel
+
+The canvas includes a live design token editor on the right edge. It displays the current `DESIGN.md` tokens organized by group (colors, typography, spacing, rounded, components) and lets you edit them in place — changes are previewed immediately and can be committed back to `DESIGN.md`. The panel also shows suggestions from the `/suggest` skill as clickable cards for instant preview and one-click application.
 
 ## Scripts
 
@@ -109,8 +123,9 @@ The same skills are mirrored for other CLI coding agents so you can use whicheve
 ```
 src/              React app (canvas, pages, hooks, node types)
 server/           Vite plugin: HTTP API + chokidar watcher + SSE
-.claude/skills/   Claude Code skills (frame, frontend-design, port)
+.claude/skills/   Claude Code skills (frame, frontend-design, port, alternatives, suggest)
 skills/           Mirror of the above (for discoverability)
+site/             Landing page (deployed to GitHub Pages)
 ```
 
 ## Contributing
