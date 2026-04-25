@@ -4,6 +4,7 @@ import {
   ReactFlow,
   ReactFlowProvider,
   useNodesState,
+  useReactFlow,
   Background,
   Controls,
   type NodeChange,
@@ -17,7 +18,9 @@ import { useDesignDoc } from '../hooks/useDesignDoc'
 import { useSuggestions } from '../hooks/useSuggestions'
 import { TokensSyncContext } from '../context/TokensSyncContext'
 import { TokensPanel } from '../components/TokensPanel'
+import { HelperLines } from '../components/HelperLines'
 import { deleteFrame, dismissSuggestion, patchLayout } from '../lib/api'
+import { getHelperLines, SNAP_PX } from '../lib/helperLines'
 import type { LayoutEntry } from '../lib/manifest'
 
 const nodeTypes = { 'html-frame': HtmlFrameNode }
@@ -88,9 +91,11 @@ function CanvasInner({ projectId }: { projectId: string }) {
   const { design } = useDesignDoc(projectId)
   const { suggestions } = useSuggestions(projectId)
   const writeLayout = useLayoutWriter(projectId)
+  const { getNodes, getViewport } = useReactFlow()
 
   const [panelOpen, setPanelOpen] = useState(false)
   const [overrides, setOverrides] = useState<Map<string, string>>(new Map())
+  const [helperLines, setHelperLines] = useState<{ horizontal?: number; vertical?: number }>({})
 
   const overridesCss = useMemo(() => buildOverridesCss(overrides), [overrides])
   const tokensSyncValue = useMemo(() => ({ tokensCss, overridesCss }), [tokensCss, overridesCss])
@@ -142,6 +147,20 @@ function CanvasInner({ projectId }: { projectId: string }) {
   }, [])
 
   const wrappedOnNodesChange = useCallback((changes: NodeChange[]) => {
+    let nextLines: { horizontal?: number; vertical?: number } | null = null
+    for (const change of changes) {
+      if (change.type !== 'position' || !change.position) continue
+      if (change.dragging) {
+        const zoom = getViewport().zoom
+        const lines = getHelperLines(change, getNodes(), SNAP_PX / zoom)
+        if (lines.snapPosition.x !== undefined) change.position.x = lines.snapPosition.x
+        if (lines.snapPosition.y !== undefined) change.position.y = lines.snapPosition.y
+        nextLines = { horizontal: lines.horizontal, vertical: lines.vertical }
+      } else if (change.dragging === false) {
+        nextLines = {}
+      }
+    }
+    if (nextLines !== null) setHelperLines(nextLines)
     onNodesChange(changes)
     for (const change of changes) {
       if (change.type === 'position' && change.position && change.dragging === false) {
@@ -154,7 +173,7 @@ function CanvasInner({ projectId }: { projectId: string }) {
         })
       }
     }
-  }, [onNodesChange, writeLayout])
+  }, [onNodesChange, writeLayout, getNodes, getViewport])
 
   const handleBeforeDelete = useCallback(async ({ nodes: deleted }: { nodes: Node[] }) => {
     const confirmed = deleted.filter(node =>
@@ -247,6 +266,7 @@ function CanvasInner({ projectId }: { projectId: string }) {
         >
           <Background />
           <Controls />
+          <HelperLines horizontal={helperLines.horizontal} vertical={helperLines.vertical} />
         </ReactFlow>
       </div>
       {panelOpen && (
