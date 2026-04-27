@@ -59,7 +59,7 @@ Defaults to `./projects/` (gitignored).
 
 **Frames** are single HTML files with inline CSS/JS — no build step, no external deps (unless you want them). The canvas renders them via iframes.
 
-**Two-way sync**: the dev server watches the filesystem with `chokidar` and streams change events over SSE. Edits in the canvas hit the HTTP API and are echoed back as events. Edits on disk (from your editor, or from an agent writing files directly) show up on the canvas within ~100ms.
+**Two-way sync**: the dev server watches the filesystem with `chokidar` and streams change events over SSE. Edits in the canvas hit the HTTP API and are echoed back as events. Edits on disk (from your editor, or from an agent writing files directly) show up on the canvas as soon as the file is written.
 
 ## HTTP API
 

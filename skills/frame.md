@@ -128,7 +128,7 @@ Size by kind:
 
 ## Step 7: Confirm
 
-Tell the user the frame was created, the name, and that they can double-click it to interact. The canvas picks up the new frame automatically within ~100ms.
+Tell the user the frame was created and the name. The canvas picks up the new frame automatically via the file watcher.
 
 ## Step 8: Update project docs
 
@@ -158,7 +158,7 @@ FEEL.md is not linted; it's freeform prose.
 
 ## HTTP API reference
 
-**Always prefer direct file edits** for frame content, `frames.json`, and `.opendesign/layout.json` — single frame or many, create or update or delete. The dev server watches the filesystem and reconciles on its own. The canvas sees changes within ~100ms either way, and the diff stays reviewable.
+**Always prefer direct file edits** for frame content, `frames.json`, and `.opendesign/layout.json` — single frame or many, create or update or delete. The dev server watches the filesystem and reconciles on its own. The canvas sees changes either way, and the diff stays reviewable.
 
 The HTTP API exists for **one thing** this skill can't do via files: creating a new project (the server has to bootstrap `PROJECT.md`, `DESIGN.md`, `design-reference.html`, and seed the manifest/layout — don't try to reproduce that by hand).
 

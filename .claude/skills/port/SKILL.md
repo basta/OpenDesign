@@ -314,7 +314,7 @@ Collect the subagent results. Tell the user:
 - N screens ported successfully (list names)
 - Any failures with their reasons
 
-Canvas picks up each POSTed frame within ~100ms via SSE; no refresh needed.
+Canvas picks up each POSTed frame via SSE; no refresh needed.
 
 ## Failure handling
 

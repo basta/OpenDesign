@@ -118,7 +118,7 @@ Shape:
 
 Omit `prompt` from the JSON if the user didn't supply one. Always include `tweak`, `createdAt`, `source`, `variants`.
 
-The dev server's chokidar watcher detects the new file and broadcasts `suggestions-changed` over SSE; the panel auto-displays the card within ~100ms. No API call needed.
+The dev server's chokidar watcher detects the new file and broadcasts `suggestions-changed` over SSE; the panel auto-displays the card. No API call needed.
 
 ## Step 6: Report
 

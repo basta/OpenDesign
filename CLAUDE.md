@@ -2,7 +2,7 @@
 
 OpenDesign is a Figma-like design tool built on React Flow (`@xyflow/react`). The canvas hosts "frames" — each frame renders a self-contained HTML file via an iframe. Work is organized into **projects**; each project is a subdirectory under `PROJECTS_ROOT` with its own manifest, layout, and frames.
 
-The intended workflow: the user describes a frame, Claude posts it to the OpenDesign HTTP API, and it appears on the canvas within ~100ms.
+The intended workflow: the user describes a frame, Claude writes it to disk (or posts it to the OpenDesign HTTP API), and the canvas picks it up via the file watcher.
 
 ## Commands
 
