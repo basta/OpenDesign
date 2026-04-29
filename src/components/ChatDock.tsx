@@ -50,7 +50,6 @@ interface ViewModel {
 function computeViewModel(events: ChatEvent[]): ViewModel {
   const items: Item[] = []
   const toolIdx = new Map<string, number>()
-  const agentIdx = new Map<string, number>()
   let userCounter = 0
   let agentCounter = 0
   let pendingPermission: ViewModel['pendingPermission'] = null
@@ -67,16 +66,13 @@ function computeViewModel(events: ChatEvent[]): ViewModel {
     } else if (event.type === 'session_update') {
       const update = event.update
       if (update.sessionUpdate === 'agent_message_chunk') {
-        const messageId = update.messageId ?? `auto-${event.ts}`
         const text = update.content.type === 'text' ? update.content.text : ''
         if (!text) continue
-        const existingIdx = agentIdx.get(messageId)
-        if (existingIdx !== undefined) {
-          const existing = items[existingIdx] as AgentBubble
-          items[existingIdx] = { ...existing, text: existing.text + text }
+        const last = items[items.length - 1]
+        if (last && last.kind === 'agent') {
+          items[items.length - 1] = { ...last, text: last.text + text }
         } else {
           const id = `a-${agentCounter++}-${event.ts}`
-          agentIdx.set(messageId, items.length)
           items.push({ kind: 'agent', id, text })
         }
       } else if (update.sessionUpdate === 'tool_call') {
