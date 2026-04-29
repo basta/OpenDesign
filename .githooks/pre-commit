@@ -1,0 +1,4 @@
+#!/bin/sh
+# Run ESLint before each commit. Same check CI runs, so failures
+# surface locally instead of after pushing.
+exec npm run lint

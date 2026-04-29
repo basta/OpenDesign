@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useProjectEvent } from '../lib/projectEvents'
 
 export interface DesignDoc {
@@ -17,22 +17,20 @@ export function useDesignDoc(projectId: string): { design: ProjectDesign | null;
   const [design, setDesign] = useState<ProjectDesign | null>(null)
   const [reloadTick, setReloadTick] = useState(0)
 
-  const fetchDoc = useCallback(async () => {
-    try {
-      const res = await fetch(`/api/projects/${projectId}/design`, { cache: 'no-store' })
-      if (!res.ok) return
-      const json = (await res.json()) as ProjectDesign
-      setDesign(json)
-    } catch {
-      /* ignore */
-    }
-  }, [projectId])
-
   useEffect(() => {
-    fetchDoc()
-  }, [fetchDoc, reloadTick])
+    let cancelled = false
+    fetch(`/api/projects/${projectId}/design`, { cache: 'no-store' })
+      .then(res => (res.ok ? res.json() : null))
+      .then(json => {
+        if (cancelled || !json) return
+        setDesign(json as ProjectDesign)
+      })
+      .catch(() => { /* ignore */ })
+    return () => { cancelled = true }
+  }, [projectId, reloadTick])
 
-  useProjectEvent('design-changed', () => { fetchDoc() })
+  const reload = () => setReloadTick(t => t + 1)
+  useProjectEvent('design-changed', reload)
 
-  return { design, reload: () => setReloadTick(t => t + 1) }
+  return { design, reload }
 }
