@@ -20,9 +20,11 @@ import { TokensSyncContext } from '../context/TokensSyncContext'
 import { ProjectEventsProvider } from '../lib/ProjectEventsProvider'
 import { TokensPanel } from '../components/TokensPanel'
 import { ChatDock } from '../components/ChatDock'
+import { SettingsPanel } from '../components/SettingsPanel'
 import { HelperLines } from '../components/HelperLines'
 import { deleteFrame, dismissSuggestion, patchLayout } from '../lib/api'
-import { getHelperLines, SNAP_PX } from '../lib/helperLines'
+import { getHelperLines } from '../lib/helperLines'
+import { useSettings } from '../hooks/useSettings'
 import type { LayoutEntry } from '../lib/manifest'
 
 const nodeTypes = { 'html-frame': HtmlFrameNode }
@@ -97,8 +99,12 @@ function CanvasInner({ projectId }: { projectId: string }) {
 
   const [panelOpen, setPanelOpen] = useState(false)
   const [chatOpen, setChatOpen] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const [overrides, setOverrides] = useState<Map<string, string>>(new Map())
   const [helperLines, setHelperLines] = useState<{ horizontal?: number; vertical?: number }>({})
+
+  const settings = useSettings(projectId)
+  const { snap: snapEnabled, snapPx, fitDurationMs } = settings.global.canvas
 
   const overridesCss = useMemo(() => buildOverridesCss(overrides), [overrides])
   const tokensSyncValue = useMemo(() => ({ tokensCss, overridesCss }), [tokensCss, overridesCss])
@@ -147,6 +153,9 @@ function CanvasInner({ projectId }: { projectId: string }) {
       } else if (e.key === 'c' || e.key === 'C') {
         e.preventDefault()
         setChatOpen(o => !o)
+      } else if (e.key === 's' || e.key === 'S') {
+        e.preventDefault()
+        setSettingsOpen(o => !o)
       }
     }
     window.addEventListener('keydown', onKey)
@@ -154,8 +163,8 @@ function CanvasInner({ projectId }: { projectId: string }) {
   }, [])
 
   const jumpToFrame = useCallback((frameId: string) => {
-    fitView({ nodes: [{ id: frameId }], duration: 400, maxZoom: 1.2 })
-  }, [fitView])
+    fitView({ nodes: [{ id: frameId }], duration: fitDurationMs, maxZoom: 1.2 })
+  }, [fitView, fitDurationMs])
 
   const frameIds = useMemo(() => nodes.map(n => n.id), [nodes])
 
@@ -164,11 +173,15 @@ function CanvasInner({ projectId }: { projectId: string }) {
     for (const change of changes) {
       if (change.type !== 'position' || !change.position) continue
       if (change.dragging) {
-        const zoom = getViewport().zoom
-        const lines = getHelperLines(change, getNodes(), SNAP_PX / zoom)
-        if (lines.snapPosition.x !== undefined) change.position.x = lines.snapPosition.x
-        if (lines.snapPosition.y !== undefined) change.position.y = lines.snapPosition.y
-        nextLines = { horizontal: lines.horizontal, vertical: lines.vertical }
+        if (snapEnabled) {
+          const zoom = getViewport().zoom
+          const lines = getHelperLines(change, getNodes(), snapPx / zoom)
+          if (lines.snapPosition.x !== undefined) change.position.x = lines.snapPosition.x
+          if (lines.snapPosition.y !== undefined) change.position.y = lines.snapPosition.y
+          nextLines = { horizontal: lines.horizontal, vertical: lines.vertical }
+        } else {
+          nextLines = {}
+        }
       } else if (change.dragging === false) {
         nextLines = {}
       }
@@ -186,7 +199,7 @@ function CanvasInner({ projectId }: { projectId: string }) {
         })
       }
     }
-  }, [onNodesChange, writeLayout, getNodes, getViewport])
+  }, [onNodesChange, writeLayout, getNodes, getViewport, snapEnabled, snapPx])
 
   const handleBeforeDelete = useCallback(async ({ nodes: deleted }: { nodes: Node[] }) => {
     const confirmed = deleted.filter(node =>
@@ -255,6 +268,15 @@ function CanvasInner({ projectId }: { projectId: string }) {
               Tokens
             </button>
           )}
+          {!settingsOpen && (
+            <button
+              onClick={() => setSettingsOpen(true)}
+              title="Settings (S)"
+              style={toolbarBtnStyle}
+            >
+              Settings
+            </button>
+          )}
         </div>
         <ReactFlow
           nodes={nodesWithProject}
@@ -301,6 +323,15 @@ function CanvasInner({ projectId }: { projectId: string }) {
           frameIds={frameIds}
           onClose={() => setChatOpen(false)}
           onJumpToFrame={jumpToFrame}
+        />
+      )}
+      {settingsOpen && (
+        <SettingsPanel
+          projectId={projectId}
+          settings={settings}
+          design={design}
+          frameCount={nodes.length}
+          onClose={() => setSettingsOpen(false)}
         />
       )}
     </div>

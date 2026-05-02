@@ -52,6 +52,7 @@ function ensureChannel(projectId: string): Channel {
   const emitFile = debounce((frameId: string) => broadcast(projectId, 'file-changed', { frameId }), DEBOUNCE_MS)
   const emitDesign = debounce(() => broadcast(projectId, 'design-changed', {}), DEBOUNCE_MS)
   const emitSuggestions = debounce(() => broadcast(projectId, 'suggestions-changed', {}), DEBOUNCE_MS)
+  const emitSettings = debounce(() => broadcast(projectId, 'settings-changed', {}), DEBOUNCE_MS)
 
   const suggestionsPrefix = path.join('.opendesign', 'suggestions') + path.sep
 
@@ -59,6 +60,7 @@ function ensureChannel(projectId: string): Channel {
     const rel = path.relative(dir, p)
     if (rel === 'frames.json') emitManifest()
     else if (rel === path.join('.opendesign', 'layout.json')) emitLayout()
+    else if (rel === path.join('.opendesign', 'settings.json')) emitSettings()
     else if (rel === 'DESIGN.md' || rel === 'FEEL.md') emitDesign()
     else if (rel.startsWith(suggestionsPrefix) && rel.endsWith('.json')) emitSuggestions()
     else if (rel.endsWith('.html')) emitFile(path.basename(rel, '.html'))

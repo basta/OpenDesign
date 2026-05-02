@@ -8,6 +8,12 @@ import { readProjectDesign, tokensToCss, writeDesignTokens } from './design.ts'
 import { isValidSuggestionId, listSuggestions, removeSuggestion } from './suggestions.ts'
 import { subscribe } from './watcher.ts'
 import { promptChat, cancelChat, resetChat, respondPermission, subscribeChat } from './acp.ts'
+import {
+  readGlobalSettings,
+  writeGlobalSettings,
+  readProjectSettings,
+  writeProjectSettings,
+} from './settings.ts'
 import type { FrameEntry, LayoutEntry } from './types.ts'
 
 type Handler = (req: IncomingMessage, res: ServerResponse, match: RegExpMatchArray) => Promise<void> | void
@@ -240,6 +246,44 @@ const routes: { method: string; pattern: RegExp; handler: Handler }[] = [
       const ok = removeSuggestion(id, sid)
       if (!ok) return error(res, 404, 'Suggestion not found')
       json(res, 200, { ok: true })
+    },
+  },
+  {
+    method: 'GET',
+    pattern: /^\/api\/settings\/global$/,
+    handler: (_req, res) => json(res, 200, readGlobalSettings()),
+  },
+  {
+    method: 'PATCH',
+    pattern: /^\/api\/settings\/global$/,
+    handler: async (req, res) => {
+      const body = await readBody(req)
+      if (!body || typeof body !== 'object' || Array.isArray(body)) {
+        return error(res, 400, 'object body required')
+      }
+      json(res, 200, writeGlobalSettings(body))
+    },
+  },
+  {
+    method: 'GET',
+    pattern: /^\/api\/projects\/([^/]+)\/settings$/,
+    handler: (_req, res, m) => {
+      const [, id] = m
+      if (!projectExists(id)) return error(res, 404, 'Project not found')
+      json(res, 200, readProjectSettings(id))
+    },
+  },
+  {
+    method: 'PATCH',
+    pattern: /^\/api\/projects\/([^/]+)\/settings$/,
+    handler: async (req, res, m) => {
+      const [, id] = m
+      if (!projectExists(id)) return error(res, 404, 'Project not found')
+      const body = await readBody(req)
+      if (!body || typeof body !== 'object' || Array.isArray(body)) {
+        return error(res, 400, 'object body required')
+      }
+      json(res, 200, writeProjectSettings(id, body))
     },
   },
   {

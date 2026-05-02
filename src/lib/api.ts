@@ -76,3 +76,42 @@ export function fetchSuggestions(projectId: string): Promise<{ suggestions: Sugg
 export function dismissSuggestion(projectId: string, suggestionId: string): Promise<{ ok: true }> {
   return req(`/api/projects/${projectId}/suggestions/${suggestionId}`, { method: 'DELETE' })
 }
+
+export type AgentProvider = 'claude-code' | 'codex' | 'gemini' | 'opencode'
+
+export interface GlobalSettings {
+  version: number
+  agent: {
+    provider: AgentProvider
+    model: string
+    debugAcp: boolean
+    debugAcpFrames: boolean
+  }
+  canvas: {
+    snap: boolean
+    snapPx: number
+    fitDurationMs: number
+  }
+}
+
+export interface ProjectSettings {
+  version: number
+}
+
+export type DeepPartial<T> = T extends object ? { [K in keyof T]?: DeepPartial<T[K]> } : T
+
+export function getGlobalSettings(): Promise<GlobalSettings> {
+  return req('/api/settings/global')
+}
+
+export function patchGlobalSettings(patch: DeepPartial<GlobalSettings>): Promise<GlobalSettings> {
+  return req('/api/settings/global', { method: 'PATCH', body: JSON.stringify(patch) })
+}
+
+export function getProjectSettings(projectId: string): Promise<ProjectSettings> {
+  return req(`/api/projects/${projectId}/settings`)
+}
+
+export function patchProjectSettings(projectId: string, patch: DeepPartial<ProjectSettings>): Promise<ProjectSettings> {
+  return req(`/api/projects/${projectId}/settings`, { method: 'PATCH', body: JSON.stringify(patch) })
+}

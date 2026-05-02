@@ -39,18 +39,26 @@ afterAll(async () => {
 })
 
 let tmp: string
+let tmpHome: string
 let prevRoot: string | undefined
+let prevHome: string | undefined
 
 beforeEach(() => {
   tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'opendesign-api-'))
+  tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), 'opendesign-api-home-'))
   prevRoot = process.env.PROJECTS_ROOT
+  prevHome = process.env.HOME
   process.env.PROJECTS_ROOT = tmp
+  process.env.HOME = tmpHome
 })
 
 afterEach(() => {
   fs.rmSync(tmp, { recursive: true, force: true })
+  fs.rmSync(tmpHome, { recursive: true, force: true })
   if (prevRoot === undefined) delete process.env.PROJECTS_ROOT
   else process.env.PROJECTS_ROOT = prevRoot
+  if (prevHome === undefined) delete process.env.HOME
+  else process.env.HOME = prevHome
 })
 
 async function createDemo() {
@@ -367,5 +375,124 @@ describe('GET /frames/:projectId/:file', () => {
   test('blocks path traversal', async () => {
     const res = await fetch(`${baseUrl}/frames/demo/..%2F..%2Fetc%2Fpasswd`)
     expect(res.status).toBe(404)
+  })
+})
+
+describe('GET /api/settings/global', () => {
+  test('returns defaults when no file exists', async () => {
+    const res = await fetch(`${baseUrl}/api/settings/global`)
+    expect(res.status).toBe(200)
+    const body = await getJson(res)
+    expect(body.version).toBe(1)
+    expect(body.agent.provider).toBe('claude-code')
+    expect(body.canvas).toEqual({ snap: true, snapPx: 6, fitDurationMs: 400 })
+  })
+
+  test('reflects prior PATCH writes', async () => {
+    await fetch(`${baseUrl}/api/settings/global`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ canvas: { snapPx: 12 } }),
+    })
+    const body = await getJson(await fetch(`${baseUrl}/api/settings/global`))
+    expect(body.canvas.snapPx).toBe(12)
+    expect(body.canvas.snap).toBe(true)
+  })
+})
+
+describe('PATCH /api/settings/global', () => {
+  test('deep-merges and persists to ~/.opendesign/settings.json', async () => {
+    const res = await fetch(`${baseUrl}/api/settings/global`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ agent: { provider: 'gemini' }, canvas: { snapPx: 9 } }),
+    })
+    expect(res.status).toBe(200)
+    const body = await getJson(res)
+    expect(body.agent.provider).toBe('gemini')
+    expect(body.agent.model).toBe('claude-sonnet-4-6') // default preserved
+    expect(body.canvas.snapPx).toBe(9)
+
+    const onDisk = JSON.parse(
+      fs.readFileSync(path.join(tmpHome, '.opendesign', 'settings.json'), 'utf-8'),
+    )
+    expect(onDisk.agent.provider).toBe('gemini')
+    expect(onDisk.canvas.snapPx).toBe(9)
+  })
+
+  test('rejects non-object body', async () => {
+    const res = await fetch(`${baseUrl}/api/settings/global`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify([1, 2, 3]),
+    })
+    expect(res.status).toBe(400)
+  })
+
+  test('forces version field', async () => {
+    const res = await fetch(`${baseUrl}/api/settings/global`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ version: 999 }),
+    })
+    expect((await getJson(res)).version).toBe(1)
+  })
+})
+
+describe('project settings', () => {
+  beforeEach(createDemo)
+
+  test('GET returns defaults for valid project', async () => {
+    const res = await fetch(`${baseUrl}/api/projects/demo/settings`)
+    expect(res.status).toBe(200)
+    expect(await getJson(res)).toEqual({ version: 1 })
+  })
+
+  test('GET 404s on missing project', async () => {
+    const res = await fetch(`${baseUrl}/api/projects/nonexistent/settings`)
+    expect(res.status).toBe(404)
+  })
+
+  test('PATCH persists to project .opendesign/settings.json', async () => {
+    const res = await fetch(`${baseUrl}/api/projects/demo/settings`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ extra: { x: 1 } }),
+    })
+    expect(res.status).toBe(200)
+    expect(fs.existsSync(path.join(tmp, 'demo', '.opendesign', 'settings.json'))).toBe(true)
+    const onDisk = JSON.parse(
+      fs.readFileSync(path.join(tmp, 'demo', '.opendesign', 'settings.json'), 'utf-8'),
+    )
+    expect(onDisk.extra).toEqual({ x: 1 })
+  })
+
+  test('PATCH 404s on missing project', async () => {
+    const res = await fetch(`${baseUrl}/api/projects/nonexistent/settings`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    })
+    expect(res.status).toBe(404)
+  })
+
+  test('PATCH rejects non-object body', async () => {
+    const res = await fetch(`${baseUrl}/api/projects/demo/settings`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify('hello'),
+    })
+    expect(res.status).toBe(400)
+  })
+
+  test('global and project scopes are isolated', async () => {
+    await fetch(`${baseUrl}/api/settings/global`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ canvas: { snapPx: 22 } }),
+    })
+    const projectBody = await getJson(await fetch(`${baseUrl}/api/projects/demo/settings`))
+    expect(projectBody).toEqual({ version: 1 })
+    expect(fs.existsSync(path.join(tmp, 'demo', '.opendesign', 'settings.json'))).toBe(false)
   })
 })

@@ -6,6 +6,7 @@ import { randomUUID } from 'crypto'
 import type { ServerResponse } from 'http'
 import * as acp from '@agentclientprotocol/sdk'
 import { projectDir, projectExists, resolveProjectPath } from './projects.ts'
+import { readGlobalSettings } from './settings.ts'
 
 // TODO(multi-agent): replace with env-var or per-project config so users can
 // pick Claude Code, Gemini CLI, Codex, etc. The adapter is a project
@@ -15,11 +16,17 @@ const AGENT_CMD: [string, string[]] = ['npx', ['claude-agent-acp']]
 
 const LOG_LIMIT = 200
 
-// Debug logging for the ACP integration. Set DEBUG_ACP=0 to silence.
+// Debug logging for the ACP integration. Env vars win when set; otherwise we
+// fall back to the persisted global settings. Set DEBUG_ACP=0 to silence.
 // Frame-level logging (raw ndjson in/out) is gated separately on DEBUG_ACP=frames
 // because it can be very noisy when models stream long responses.
-const DEBUG_ACP = process.env.DEBUG_ACP !== '0'
-const DEBUG_ACP_FRAMES = process.env.DEBUG_ACP === 'frames' || process.env.DEBUG_ACP_FRAMES === '1'
+const settingsAtLoad = readGlobalSettings()
+const DEBUG_ACP = process.env.DEBUG_ACP !== undefined
+  ? process.env.DEBUG_ACP !== '0'
+  : settingsAtLoad.agent.debugAcp
+const DEBUG_ACP_FRAMES = process.env.DEBUG_ACP === 'frames'
+  || process.env.DEBUG_ACP_FRAMES === '1'
+  || (process.env.DEBUG_ACP === undefined && process.env.DEBUG_ACP_FRAMES === undefined && settingsAtLoad.agent.debugAcpFrames)
 
 function dbg(projectId: string, msg: string, extra?: unknown): void {
   if (!DEBUG_ACP) return
