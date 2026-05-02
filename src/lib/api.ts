@@ -108,6 +108,14 @@ export function patchGlobalSettings(patch: DeepPartial<GlobalSettings>): Promise
   return req('/api/settings/global', { method: 'PATCH', body: JSON.stringify(patch) })
 }
 
+export type AgentTestResult =
+  | { ok: true; provider: AgentProvider; label: string; durationMs: number; protocolVersion: number }
+  | { ok: false; provider: AgentProvider; label: string; error: string; command: string; stderr: string }
+
+export function testAgent(): Promise<AgentTestResult> {
+  return req('/api/settings/agent/test', { method: 'POST' })
+}
+
 export function getProjectSettings(projectId: string): Promise<ProjectSettings> {
   return req(`/api/projects/${projectId}/settings`)
 }

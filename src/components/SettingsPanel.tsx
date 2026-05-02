@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { resetChat } from '../lib/chat'
-import type { AgentProvider, GlobalSettings } from '../lib/api'
+import { testAgent, type AgentProvider, type AgentTestResult, type GlobalSettings } from '../lib/api'
 import type { UseSettings } from '../hooks/useSettings'
 import type { ProjectDesign } from '../hooks/useDesignDoc'
 
@@ -178,9 +178,35 @@ function Item({
   )
 }
 
+type TestState =
+  | { status: 'idle' }
+  | { status: 'testing' }
+  | { status: 'done'; result: AgentTestResult }
+
 function AgentBody({ settings, onResetChat }: { settings: UseSettings; onResetChat: () => void }) {
   const { global, patchGlobal } = settings
   const models = MODELS_BY_PROVIDER[global.agent.provider]
+  const [test, setTest] = useState<TestState>({ status: 'idle' })
+
+  const runTest = async () => {
+    setTest({ status: 'testing' })
+    try {
+      const result = await testAgent()
+      setTest({ status: 'done', result })
+    } catch (e) {
+      setTest({
+        status: 'done',
+        result: {
+          ok: false,
+          provider: global.agent.provider,
+          label: '',
+          error: (e as Error).message,
+          command: '',
+          stderr: '',
+        },
+      })
+    }
+  }
 
   return (
     <>
@@ -192,11 +218,15 @@ function AgentBody({ settings, onResetChat }: { settings: UseSettings; onResetCh
               key={p.id}
               onClick={() => {
                 if (selected) return
+                const ok = window.confirm(
+                  `Switch agent to ${p.name}?\n\nThis will reset any active chat session and spawn the new agent on the next prompt.`,
+                )
+                if (!ok) return
                 const nextModel = MODELS_BY_PROVIDER[p.id][0]
                 patchGlobal({ agent: { provider: p.id, model: nextModel } })
               }}
               style={providerBtnStyle(selected)}
-              title={p.id === 'claude-code' ? 'Active' : 'Persists selection (backend stays Claude Code for now)'}
+              title={selected ? 'Active' : `Switch to ${p.name}`}
             >
               <span style={providerMarkStyle(p.markBg, p.markColor)}>{p.name[0]}</span>
               <span style={providerNameStyle}>{p.name}</span>
@@ -239,10 +269,84 @@ function AgentBody({ settings, onResetChat }: { settings: UseSettings; onResetCh
         />
       </Row>
 
+      <Row label="Health">
+        <button
+          onClick={runTest}
+          style={ghostBtnStyle(test.status === 'testing')}
+          disabled={test.status === 'testing'}
+          title="Spawn the agent and run an ACP handshake"
+        >
+          {test.status === 'testing' ? 'Testing…' : 'Test setup'}
+        </button>
+        <TestStatusInline state={test} />
+      </Row>
+      <TestLog state={test} />
+
       <Row label="Session">
         <button onClick={onResetChat} style={ghostBtnStyle(false)}>Reset chat</button>
       </Row>
     </>
+  )
+}
+
+function TestStatusInline({ state }: { state: TestState }) {
+  if (state.status === 'idle') return null
+  if (state.status === 'testing') {
+    return <span style={authTextStyle}>connecting…</span>
+  }
+  const { result } = state
+  if (result.ok) {
+    return (
+      <span style={{ ...authTextStyle, color: '#3a7' }} title={`ACP v${result.protocolVersion}`}>
+        ✓ {result.label} · {result.durationMs}ms
+      </span>
+    )
+  }
+  return (
+    <span style={{ ...authTextStyle, color: '#c44' }}>
+      ✗ failed
+    </span>
+  )
+}
+
+function TestLog({ state }: { state: TestState }) {
+  if (state.status !== 'done' || state.result.ok) return null
+  const { result } = state
+  const stderrTrimmed = result.stderr.trim()
+  return (
+    <div style={terminalWrapStyle}>
+      <div style={terminalHeaderStyle}>
+        <span style={{ color: '#888' }}>$</span>
+        <span style={{ flex: 1 }}>{result.command}</span>
+        <button
+          onClick={() => {
+            const blob = `$ ${result.command}\n${result.error}\n${stderrTrimmed ? '\n' + stderrTrimmed : ''}`
+            navigator.clipboard?.writeText(blob).catch(() => {})
+          }}
+          style={terminalCopyBtnStyle}
+          title="Copy log"
+        >
+          copy
+        </button>
+      </div>
+      <pre style={terminalBodyStyle}>
+        <span style={{ color: '#f88' }}>{result.error}</span>
+        {stderrTrimmed && (
+          <>
+            {'\n\n'}
+            <span style={{ color: '#aaa' }}>── stderr ──</span>
+            {'\n'}
+            <span style={{ color: '#ddd' }}>{stderrTrimmed}</span>
+          </>
+        )}
+        {!stderrTrimmed && (
+          <>
+            {'\n\n'}
+            <span style={{ color: '#888', fontStyle: 'italic' }}>(no stderr output)</span>
+          </>
+        )}
+      </pre>
+    </div>
   )
 }
 
@@ -630,6 +734,47 @@ const numberInputStyle: React.CSSProperties = {
   background: '#fff',
   fontSize: 11,
   fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+}
+const terminalWrapStyle: React.CSSProperties = {
+  marginTop: 6,
+  marginBottom: 6,
+  border: '1px solid #2a2a2a',
+  borderRadius: 4,
+  overflow: 'hidden',
+  background: '#1c1c1c',
+}
+const terminalHeaderStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 6,
+  padding: '4px 8px',
+  background: '#222',
+  borderBottom: '1px solid #2a2a2a',
+  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+  fontSize: 10,
+  color: '#ddd',
+}
+const terminalCopyBtnStyle: React.CSSProperties = {
+  background: 'transparent',
+  border: '1px solid #444',
+  borderRadius: 3,
+  color: '#aaa',
+  fontSize: 9,
+  fontFamily: 'inherit',
+  padding: '1px 6px',
+  cursor: 'pointer',
+}
+const terminalBodyStyle: React.CSSProperties = {
+  margin: 0,
+  padding: '6px 8px',
+  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+  fontSize: 10,
+  lineHeight: 1.5,
+  color: '#ddd',
+  maxHeight: 200,
+  overflowY: 'auto',
+  whiteSpace: 'pre-wrap',
+  wordBreak: 'break-word',
 }
 const dotStyle = (bg: string): React.CSSProperties => ({
   width: 8,

@@ -7,7 +7,7 @@ import { patchLayoutEntry, readLayout, removeLayoutEntry } from './layout.ts'
 import { readProjectDesign, tokensToCss, writeDesignTokens } from './design.ts'
 import { isValidSuggestionId, listSuggestions, removeSuggestion } from './suggestions.ts'
 import { subscribe } from './watcher.ts'
-import { promptChat, cancelChat, resetChat, respondPermission, subscribeChat } from './acp.ts'
+import { promptChat, cancelChat, resetChat, respondPermission, restartAllSessions, subscribeChat, testAgent } from './acp.ts'
 import {
   readGlobalSettings,
   writeGlobalSettings,
@@ -261,7 +261,20 @@ const routes: { method: string; pattern: RegExp; handler: Handler }[] = [
       if (!body || typeof body !== 'object' || Array.isArray(body)) {
         return error(res, 400, 'object body required')
       }
-      json(res, 200, writeGlobalSettings(body))
+      const before = readGlobalSettings().agent.provider
+      const merged = writeGlobalSettings(body)
+      if (merged.agent.provider !== before) {
+        restartAllSessions(`provider switched ${before}→${merged.agent.provider}`)
+      }
+      json(res, 200, merged)
+    },
+  },
+  {
+    method: 'POST',
+    pattern: /^\/api\/settings\/agent\/test$/,
+    handler: async (_req, res) => {
+      const result = await testAgent()
+      json(res, 200, result)
     },
   },
   {

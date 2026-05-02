@@ -1,18 +1,14 @@
 import { spawn, type ChildProcess } from 'child_process'
 import { Readable, Writable, Transform } from 'stream'
 import fs from 'fs'
+import os from 'os'
 import path from 'path'
 import { randomUUID } from 'crypto'
 import type { ServerResponse } from 'http'
 import * as acp from '@agentclientprotocol/sdk'
 import { projectDir, projectExists, resolveProjectPath } from './projects.ts'
 import { readGlobalSettings } from './settings.ts'
-
-// TODO(multi-agent): replace with env-var or per-project config so users can
-// pick Claude Code, Gemini CLI, Codex, etc. The adapter is a project
-// dependency so npx finds it in local node_modules without re-installing
-// (avoiding the ETXTBSY race that `npx -y` triggers across concurrent spawns).
-const AGENT_CMD: [string, string[]] = ['npx', ['claude-agent-acp']]
+import { getAdapter, type AgentAdapter } from './agents.ts'
 
 const LOG_LIMIT = 200
 
@@ -41,6 +37,17 @@ if (DEBUG_ACP) {
 
 function truncate(s: string, max = 600): string {
   return s.length > max ? `${s.slice(0, max)}…(+${s.length - max})` : s
+}
+
+function decorateSpawnError(err: Error, adapter: AgentAdapter): Error {
+  const code = (err as NodeJS.ErrnoException).code
+  if (code === 'ENOENT') {
+    const hint = adapter.installHint ? ` Install: ${adapter.installHint}` : ''
+    const decorated = new Error(`${adapter.label} not found on PATH (\`${adapter.cmd}\`).${hint}`)
+    ;(decorated as NodeJS.ErrnoException).code = code
+    return decorated
+  }
+  return err
 }
 
 function makeLineSink(emit: (line: string) => void): (chunk: Buffer | string) => void {
@@ -187,8 +194,10 @@ function buildClient(channel: Channel, projectId: string): acp.Client {
 
 async function spawnSession(projectId: string, channel: Channel): Promise<AcpSession> {
   const cwd = projectDir(projectId)
-  dbg(projectId, `spawning agent`, { cmd: AGENT_CMD[0], args: AGENT_CMD[1], cwd })
-  const child = spawn(AGENT_CMD[0], AGENT_CMD[1], {
+  const provider = readGlobalSettings().agent.provider
+  const adapter = getAdapter(provider)
+  dbg(projectId, `spawning agent`, { provider, cmd: adapter.cmd, args: adapter.args, cwd })
+  const child = spawn(adapter.cmd, adapter.args, {
     cwd,
     stdio: ['pipe', 'pipe', 'pipe'],
     env: process.env,
@@ -197,8 +206,8 @@ async function spawnSession(projectId: string, channel: Channel): Promise<AcpSes
 
   let earlyError: Error | null = null
   child.once('error', (err: Error) => {
-    earlyError = err
-    dbg(projectId, `spawn error: ${err.message}`)
+    earlyError = decorateSpawnError(err, adapter)
+    dbg(projectId, `spawn error: ${earlyError.message}`)
   })
 
   if (!child.stdin || !child.stdout || !child.stderr) {
@@ -353,16 +362,116 @@ export async function cancelChat(projectId: string): Promise<void> {
   await session.conn.cancel({ sessionId: session.sessionId })
 }
 
-export function resetChat(projectId: string): void {
-  const channel = channels.get(projectId)
-  if (!channel) return
+function killAndResetChannel(projectId: string, channel: Channel, reason: string): void {
   const session = channel.session
   if (session) {
-    dbg(projectId, `reset → killing session=${session.sessionId}`)
+    dbg(projectId, `${reason} → killing session=${session.sessionId}`)
     session.child.kill()
   }
   channel.log = []
   pushEvent(channel, { type: 'chat_reset', ts: now() })
+}
+
+export function resetChat(projectId: string): void {
+  const channel = channels.get(projectId)
+  if (!channel) return
+  killAndResetChannel(projectId, channel, 'reset')
+}
+
+export function restartAllSessions(reason: string): void {
+  for (const [projectId, channel] of channels) {
+    killAndResetChannel(projectId, channel, reason)
+  }
+}
+
+const TEST_TIMEOUT_MS = 16000
+const TEST_STDERR_CAP = 16 * 1024
+
+export type AgentTestResult =
+  | { ok: true; provider: string; label: string; durationMs: number; protocolVersion: number }
+  | { ok: false; provider: string; label: string; error: string; command: string; stderr: string }
+
+// Health check: spawn the configured adapter, run initialize, kill it.
+// Validates "binary on PATH + speaks ACP". Does not validate auth or that a
+// real prompt would succeed — those only fail at session/prompt time.
+export async function testAgent(): Promise<AgentTestResult> {
+  const provider = readGlobalSettings().agent.provider
+  const adapter = getAdapter(provider)
+  const start = Date.now()
+  const command = [adapter.cmd, ...adapter.args].join(' ')
+
+  const child = spawn(adapter.cmd, adapter.args, {
+    cwd: os.tmpdir(),
+    stdio: ['pipe', 'pipe', 'pipe'],
+    env: process.env,
+  })
+
+  let earlyError: Error | null = null
+  child.once('error', (err: Error) => {
+    earlyError = decorateSpawnError(err, adapter)
+  })
+
+  // Buffer stderr (capped) so failures can show what the agent died saying.
+  let stderrBuf = ''
+  let stderrTruncated = false
+  const fail = (msg: string): AgentTestResult => {
+    const tail = stderrTruncated ? '…(truncated)\n' + stderrBuf : stderrBuf
+    return { ok: false, provider, label: adapter.label, error: msg, command, stderr: tail }
+  }
+
+  if (!child.stdin || !child.stdout || !child.stderr) {
+    child.kill()
+    return fail('Agent stdio pipes unavailable')
+  }
+
+  child.stderr.on('data', (chunk: Buffer) => {
+    stderrBuf += chunk.toString('utf-8')
+    if (stderrBuf.length > TEST_STDERR_CAP) {
+      stderrBuf = stderrBuf.slice(stderrBuf.length - TEST_STDERR_CAP)
+      stderrTruncated = true
+    }
+  })
+  child.stdin.on('error', () => {})
+
+  const writableWeb = Writable.toWeb(child.stdin) as WritableStream<Uint8Array>
+  const readableWeb = Readable.toWeb(child.stdout) as ReadableStream<Uint8Array>
+  const stream = acp.ndJsonStream(writableWeb, readableWeb)
+
+  const client: acp.Client = {
+    async readTextFile() { throw new Error('test client') },
+    async writeTextFile() { throw new Error('test client') },
+    async sessionUpdate() {},
+    async requestPermission() { return { outcome: { outcome: 'cancelled' } } },
+  }
+  const conn = new acp.ClientSideConnection(() => client, stream)
+
+  let timer: ReturnType<typeof setTimeout> | null = null
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`Timed out after ${TEST_TIMEOUT_MS}ms`)), TEST_TIMEOUT_MS)
+  })
+
+  try {
+    const res = await Promise.race([
+      conn.initialize({
+        protocolVersion: acp.PROTOCOL_VERSION,
+        clientCapabilities: { fs: { readTextFile: true, writeTextFile: true }, terminal: false },
+      }),
+      timeout,
+    ])
+    return {
+      ok: true,
+      provider,
+      label: adapter.label,
+      durationMs: Date.now() - start,
+      protocolVersion: res.protocolVersion,
+    }
+  } catch (err) {
+    const e = earlyError ?? (err as Error)
+    return fail(e.message)
+  } finally {
+    if (timer) clearTimeout(timer)
+    child.kill()
+  }
 }
 
 export function respondPermission(
