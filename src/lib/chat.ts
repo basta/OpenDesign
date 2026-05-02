@@ -3,6 +3,7 @@ import type {
   SessionUpdate,
   ToolCallUpdate,
 } from '@agentclientprotocol/sdk'
+import type { ModelState } from './api'
 
 export type { PermissionOption, SessionUpdate, ToolCallUpdate }
 
@@ -21,6 +22,7 @@ export type ChatEvent =
   | { type: 'agent_error'; message: string; ts: number }
   | { type: 'agent_exited'; code: number | null; ts: number }
   | { type: 'chat_reset'; ts: number }
+  | { type: 'models'; state: ModelState; ts: number }
 
 export type PermissionResponse =
   | { cancelled: true }

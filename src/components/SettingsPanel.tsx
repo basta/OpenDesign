@@ -3,6 +3,7 @@ import { resetChat } from '../lib/chat'
 import { testAgent, type AgentProvider, type AgentTestResult, type GlobalSettings } from '../lib/api'
 import type { UseSettings } from '../hooks/useSettings'
 import type { ProjectDesign } from '../hooks/useDesignDoc'
+import { useAgentModels } from '../hooks/useAgentModels'
 
 interface Props {
   projectId: string
@@ -15,16 +16,9 @@ interface Props {
 const PROVIDERS: { id: AgentProvider; name: string; markBg: string; markColor: string }[] = [
   { id: 'claude-code', name: 'Claude Code', markBg: '#f5f3ee', markColor: '#c15c3c' },
   { id: 'codex', name: 'Codex', markBg: '#f3f3f3', markColor: '#111' },
-  { id: 'gemini', name: 'Gemini', markBg: '#eef2f9', markColor: '#1f6cd9' },
+  { id: 'gemini', name: 'Gemini-cli', markBg: '#eef2f9', markColor: '#1f6cd9' },
   { id: 'opencode', name: 'OpenCode', markBg: '#f1f1f0', markColor: '#333' },
 ]
-
-const MODELS_BY_PROVIDER: Record<AgentProvider, string[]> = {
-  'claude-code': ['claude-sonnet-4-6', 'claude-opus-4-7', 'claude-haiku-4-5'],
-  codex: ['gpt-5', 'o3'],
-  gemini: ['gemini-2.5-pro', 'gemini-2.5-flash'],
-  opencode: ['default'],
-}
 
 function isDesignFilled(design: ProjectDesign | null): boolean {
   if (!design) return false
@@ -67,7 +61,7 @@ export function SettingsPanel({ projectId, settings, design, frameCount, onClose
             name="Agent"
             summary={agentSummary}
           >
-            <AgentBody settings={settings} onResetChat={() => { resetChat(projectId).catch(() => {}) }} />
+            <AgentBody projectId={projectId} settings={settings} onResetChat={() => { resetChat(projectId).catch(() => {}) }} />
           </Item>
 
           <Item
@@ -119,7 +113,7 @@ export function SettingsPanel({ projectId, settings, design, frameCount, onClose
       <footer style={footerStyle}>
         <span>OpenDesign 0.1.0-alpha</span>
         <span>
-          <a href="https://github.com/anthropics/claude-code" target="_blank" rel="noopener noreferrer" style={linkStyle}>
+          <a href="https://github.com/basta/OpenDesign" target="_blank" rel="noopener noreferrer" style={linkStyle}>
             GitHub
           </a>
         </span>
@@ -183,10 +177,23 @@ type TestState =
   | { status: 'testing' }
   | { status: 'done'; result: AgentTestResult }
 
-function AgentBody({ settings, onResetChat }: { settings: UseSettings; onResetChat: () => void }) {
+function AgentBody({
+  projectId,
+  settings,
+  onResetChat,
+}: {
+  projectId: string
+  settings: UseSettings
+  onResetChat: () => void
+}) {
   const { global, patchGlobal } = settings
-  const models = MODELS_BY_PROVIDER[global.agent.provider]
+  const agentModels = useAgentModels(projectId)
+  const models = agentModels.state?.availableModels ?? []
+  const currentModelId = agentModels.state?.currentModelId ?? global.agent.model
+  const source = agentModels.state?.source
   const [test, setTest] = useState<TestState>({ status: 'idle' })
+  const [switching, setSwitching] = useState(false)
+  const [switchNote, setSwitchNote] = useState<string | null>(null)
 
   const runTest = async () => {
     setTest({ status: 'testing' })
@@ -222,8 +229,10 @@ function AgentBody({ settings, onResetChat }: { settings: UseSettings; onResetCh
                   `Switch agent to ${p.name}?\n\nThis will reset any active chat session and spawn the new agent on the next prompt.`,
                 )
                 if (!ok) return
-                const nextModel = MODELS_BY_PROVIDER[p.id][0]
-                patchGlobal({ agent: { provider: p.id, model: nextModel } })
+                patchGlobal({ agent: { provider: p.id } })
+                // Provider change kills the session server-side; refresh to
+                // pick up the new provider's fallback model list.
+                setTimeout(() => agentModels.refresh(), 300)
               }}
               style={providerBtnStyle(selected)}
               title={selected ? 'Active' : `Switch to ${p.name}`}
@@ -237,12 +246,37 @@ function AgentBody({ settings, onResetChat }: { settings: UseSettings; onResetCh
 
       <Row label="Model">
         <select
-          value={global.agent.model}
-          onChange={e => patchGlobal({ agent: { model: e.target.value } })}
+          value={currentModelId ?? ''}
+          disabled={switching || models.length === 0}
+          onChange={async e => {
+            const next = e.target.value
+            if (!next || next === currentModelId) return
+            setSwitching(true)
+            setSwitchNote(null)
+            try {
+              const res = await agentModels.setModel(next)
+              setSwitchNote(res.via === 'session' ? 'switched live' : 'will apply on next prompt')
+            } catch (err) {
+              setSwitchNote(`failed: ${(err as Error).message}`)
+            } finally {
+              setSwitching(false)
+            }
+          }}
           style={selectStyle}
         >
-          {models.map(m => <option key={m} value={m}>{m}</option>)}
+          {models.length === 0 && <option value="">(none)</option>}
+          {models.map(m => <option key={m.modelId} value={m.modelId}>{m.name}</option>)}
         </select>
+        {source === 'fallback' && models.length > 0 && (
+          <span style={{ ...authTextStyle, fontSize: 9, color: '#999' }} title="Agent hasn't reported availableModels yet — using hardcoded fallback list">
+            fallback
+          </span>
+        )}
+        {switchNote && (
+          <span style={{ ...authTextStyle, fontSize: 10, color: switchNote.startsWith('failed') ? '#c44' : '#3a7' }}>
+            {switchNote}
+          </span>
+        )}
       </Row>
 
       <Row label="Auth">

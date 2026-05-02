@@ -65,6 +65,13 @@ function makeLineSink(emit: (line: string) => void): (chunk: Buffer | string) =>
 
 type PermissionOutcome = acp.RequestPermissionResponse['outcome']
 
+export type ModelInfo = { modelId: string; name: string; description?: string | null }
+export type ModelState = {
+  availableModels: ModelInfo[]
+  currentModelId: string | null
+  source: 'acp' | 'fallback'
+}
+
 type ServerEvent =
   | { type: 'user_message'; text: string; ts: number }
   | { type: 'session_update'; update: acp.SessionUpdate; ts: number }
@@ -80,12 +87,14 @@ type ServerEvent =
   | { type: 'agent_error'; message: string; ts: number }
   | { type: 'agent_exited'; code: number | null; ts: number }
   | { type: 'chat_reset'; ts: number }
+  | { type: 'models'; state: ModelState; ts: number }
 
 type Channel = {
   subs: Set<ServerResponse>
   log: ServerEvent[]
   session: AcpSession | null
   spawning: Promise<AcpSession> | null
+  models: ModelState | null
 }
 
 type AcpSession = {
@@ -93,6 +102,9 @@ type AcpSession = {
   conn: acp.ClientSideConnection
   sessionId: string
   pending: Map<string, (outcome: PermissionOutcome) => void>
+  // Tracks whether the agent supports unstable_setSessionModel. We learn this
+  // by trying once and observing a method-not-found error.
+  supportsSetModel: boolean
 }
 
 const channels = new Map<string, Channel>()
@@ -104,7 +116,7 @@ function now(): number {
 function getChannel(projectId: string): Channel {
   let ch = channels.get(projectId)
   if (!ch) {
-    ch = { subs: new Set(), log: [], session: null, spawning: null }
+    ch = { subs: new Set(), log: [], session: null, spawning: null, models: null }
     channels.set(projectId, ch)
   }
   return ch
@@ -207,13 +219,17 @@ function buildClient(channel: Channel, projectId: string): acp.Client {
 
 async function spawnSession(projectId: string, channel: Channel): Promise<AcpSession> {
   const cwd = projectDir(projectId)
-  const provider = readGlobalSettings().agent.provider
+  const settings = readGlobalSettings()
+  const provider = settings.agent.provider
+  const model = settings.agent.model
   const adapter = getAdapter(provider)
-  dbg(projectId, `spawning agent`, { provider, cmd: adapter.cmd, args: adapter.args, cwd })
-  const child = spawn(adapter.cmd, adapter.args, {
+  const args = adapter.buildArgs(model)
+  const env = { ...process.env, ...adapter.buildEnv(model) }
+  dbg(projectId, `spawning agent`, { provider, model, cmd: adapter.cmd, args, cwd })
+  const child = spawn(adapter.cmd, args, {
     cwd,
     stdio: ['pipe', 'pipe', 'pipe'],
-    env: process.env,
+    env,
   })
   dbg(projectId, `spawned pid=${child.pid ?? '?'}`)
 
@@ -289,7 +305,31 @@ async function spawnSession(projectId: string, channel: Channel): Promise<AcpSes
     conn,
     sessionId: newSessionRes.sessionId,
     pending: new Map(),
+    supportsSetModel: true,
   }
+
+  // Capture availableModels if the adapter surfaced them, otherwise fall back
+  // to the hardcoded list per provider. Either way, broadcast so the UI can
+  // populate its picker.
+  const acpModels = newSessionRes.models
+  const fallback = adapter.fallbackModels
+  channel.models = acpModels && acpModels.availableModels.length > 0
+    ? {
+        availableModels: acpModels.availableModels.map(m => ({
+          modelId: m.modelId,
+          name: m.name,
+          description: m.description ?? null,
+        })),
+        currentModelId: acpModels.currentModelId,
+        source: 'acp',
+      }
+    : {
+        availableModels: fallback.map(m => ({ modelId: m.modelId, name: m.name })),
+        currentModelId: model || (fallback[0]?.modelId ?? null),
+        source: 'fallback',
+      }
+  dbg(projectId, `models source=${channel.models.source} count=${channel.models.availableModels.length} current=${channel.models.currentModelId}`)
+  pushEvent(channel, { type: 'models', state: channel.models, ts: now() })
 
   child.on('exit', (code, signal) => {
     dbg(projectId, `agent exited code=${code} signal=${signal ?? 'none'}`)
@@ -382,6 +422,7 @@ function killAndResetChannel(projectId: string, channel: Channel, reason: string
     session.child.kill()
   }
   channel.log = []
+  channel.models = null
   pushEvent(channel, { type: 'chat_reset', ts: now() })
 }
 
@@ -408,15 +449,18 @@ export type AgentTestResult =
 // Validates "binary on PATH + speaks ACP". Does not validate auth or that a
 // real prompt would succeed — those only fail at session/prompt time.
 export async function testAgent(): Promise<AgentTestResult> {
-  const provider = readGlobalSettings().agent.provider
+  const settings = readGlobalSettings()
+  const provider = settings.agent.provider
   const adapter = getAdapter(provider)
+  const args = adapter.buildArgs(settings.agent.model)
+  const env = { ...process.env, ...adapter.buildEnv(settings.agent.model) }
   const start = Date.now()
-  const command = [adapter.cmd, ...adapter.args].join(' ')
+  const command = [adapter.cmd, ...args].join(' ')
 
-  const child = spawn(adapter.cmd, adapter.args, {
+  const child = spawn(adapter.cmd, args, {
     cwd: os.tmpdir(),
     stdio: ['pipe', 'pipe', 'pipe'],
-    env: process.env,
+    env,
   })
 
   let earlyError: Error | null = null
@@ -498,6 +542,61 @@ export function respondPermission(
   if (!resolver) return false
   resolver(outcome)
   return true
+}
+
+export function getModels(projectId: string): ModelState {
+  const channel = channels.get(projectId)
+  if (channel?.models) return channel.models
+  // No session has been spawned yet — return the configured provider's fallback
+  // list so the UI can populate the picker without forcing a spawn.
+  const settings = readGlobalSettings()
+  const adapter = getAdapter(settings.agent.provider)
+  return {
+    availableModels: adapter.fallbackModels.map(m => ({ modelId: m.modelId, name: m.name })),
+    currentModelId: settings.agent.model || (adapter.fallbackModels[0]?.modelId ?? null),
+    source: 'fallback',
+  }
+}
+
+export type SetModelResult =
+  | { ok: true; via: 'session' | 'restart'; modelId: string }
+  | { ok: false; error: string }
+
+export async function setModel(projectId: string, modelId: string): Promise<SetModelResult> {
+  if (!projectExists(projectId)) return { ok: false, error: 'Project not found' }
+  const channel = channels.get(projectId)
+  const session = channel?.session
+
+  // No live session: persistence happens at the settings layer; nothing to do
+  // here. Next prompt will spawn with the new model.
+  if (!channel || !session) {
+    return { ok: true, via: 'restart', modelId }
+  }
+
+  if (session.supportsSetModel) {
+    try {
+      dbg(projectId, `setSessionModel → ${modelId}`)
+      await session.conn.unstable_setSessionModel({
+        sessionId: session.sessionId,
+        modelId,
+      })
+      if (channel.models) {
+        channel.models = { ...channel.models, currentModelId: modelId }
+        pushEvent(channel, { type: 'models', state: channel.models, ts: now() })
+      }
+      return { ok: true, via: 'session', modelId }
+    } catch (err) {
+      const msg = (err as Error).message ?? ''
+      // -32601 = method not found in JSON-RPC, but the SDK message wording
+      // varies. Treat any failure as "fall back to restart" rather than
+      // surfacing — restart is always correct.
+      dbg(projectId, `setSessionModel ✗ ${msg}; falling back to restart`)
+      session.supportsSetModel = false
+    }
+  }
+
+  killAndResetChannel(projectId, channel, `model→${modelId}`)
+  return { ok: true, via: 'restart', modelId }
 }
 
 export function subscribeChat(projectId: string, res: ServerResponse): boolean {

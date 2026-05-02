@@ -123,3 +123,28 @@ export function getProjectSettings(projectId: string): Promise<ProjectSettings> 
 export function patchProjectSettings(projectId: string, patch: DeepPartial<ProjectSettings>): Promise<ProjectSettings> {
   return req(`/api/projects/${projectId}/settings`, { method: 'PATCH', body: JSON.stringify(patch) })
 }
+
+export interface ModelInfo {
+  modelId: string
+  name: string
+  description?: string | null
+}
+
+export interface ModelState {
+  availableModels: ModelInfo[]
+  currentModelId: string | null
+  source: 'acp' | 'fallback'
+}
+
+export type SetModelResult = { ok: true; via: 'session' | 'restart'; modelId: string }
+
+export function getAgentModels(projectId: string): Promise<ModelState> {
+  return req(`/api/projects/${projectId}/agent/models`)
+}
+
+export function setAgentModel(projectId: string, modelId: string): Promise<SetModelResult> {
+  return req(`/api/projects/${projectId}/agent/model`, {
+    method: 'POST',
+    body: JSON.stringify({ modelId }),
+  })
+}

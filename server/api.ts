@@ -7,7 +7,8 @@ import { patchLayoutEntry, readLayout, removeLayoutEntry } from './layout.ts'
 import { readProjectDesign, tokensToCss, writeDesignTokens } from './design.ts'
 import { isValidSuggestionId, listSuggestions, removeSuggestion } from './suggestions.ts'
 import { subscribe } from './watcher.ts'
-import { promptChat, cancelChat, resetChat, respondPermission, restartAllSessions, subscribeChat, testAgent } from './acp.ts'
+import { promptChat, cancelChat, resetChat, respondPermission, restartAllSessions, subscribeChat, testAgent, getModels, setModel } from './acp.ts'
+import { getAdapter } from './agents.ts'
 import {
   readGlobalSettings,
   writeGlobalSettings,
@@ -257,15 +258,33 @@ const routes: { method: string; pattern: RegExp; handler: Handler }[] = [
     method: 'PATCH',
     pattern: /^\/api\/settings\/global$/,
     handler: async (req, res) => {
-      const body = await readBody(req)
+      const body = (await readBody(req)) as Record<string, unknown>
       if (!body || typeof body !== 'object' || Array.isArray(body)) {
         return error(res, 400, 'object body required')
       }
-      const before = readGlobalSettings().agent.provider
-      const merged = writeGlobalSettings(body)
-      if (merged.agent.provider !== before) {
-        restartAllSessions(`provider switched ${before}→${merged.agent.provider}`)
+      const prev = readGlobalSettings().agent
+      // If provider changed and the caller didn't also patch the model, reset
+      // model to the new provider's first fallback so we don't end up with a
+      // mismatched (provider, model) pair.
+      const agentPatch = (body.agent && typeof body.agent === 'object') ? body.agent as Record<string, unknown> : null
+      const providerInPatch = agentPatch?.provider
+      const modelInPatch = agentPatch?.model
+      let effectivePatch: unknown = body
+      if (typeof providerInPatch === 'string' && providerInPatch !== prev.provider && modelInPatch === undefined) {
+        const nextAdapter = getAdapter(providerInPatch as Parameters<typeof getAdapter>[0])
+        const defaultModel = nextAdapter?.fallbackModels[0]?.modelId
+        if (defaultModel) {
+          effectivePatch = { ...body, agent: { ...agentPatch, model: defaultModel } }
+        }
       }
+      const merged = writeGlobalSettings(effectivePatch)
+      if (merged.agent.provider !== prev.provider) {
+        restartAllSessions(`provider switched ${prev.provider}→${merged.agent.provider}`)
+      }
+      // Model changes are routed through POST /agent/model so the caller can
+      // see whether the switch happened in-session or via restart. We don't
+      // restart sessions here for model-only edits — that would silently kill
+      // the chat from the user's perspective.
       json(res, 200, merged)
     },
   },
@@ -368,6 +387,32 @@ const routes: { method: string; pattern: RegExp; handler: Handler }[] = [
       const ok = respondPermission(id, requestId, outcome)
       if (!ok) return error(res, 404, 'Pending permission not found')
       json(res, 200, { ok: true })
+    },
+  },
+  {
+    method: 'GET',
+    pattern: /^\/api\/projects\/([^/]+)\/agent\/models$/,
+    handler: (_req, res, m) => {
+      const [, id] = m
+      if (!projectExists(id)) return error(res, 404, 'Project not found')
+      json(res, 200, getModels(id))
+    },
+  },
+  {
+    method: 'POST',
+    pattern: /^\/api\/projects\/([^/]+)\/agent\/model$/,
+    handler: async (req, res, m) => {
+      const [, id] = m
+      if (!projectExists(id)) return error(res, 404, 'Project not found')
+      const body = (await readBody(req)) as { modelId?: unknown }
+      const modelId = asString(body.modelId)
+      if (!modelId) return error(res, 400, 'modelId required')
+      // Persist globally first so a kill+respawn fallback comes back with the
+      // new model, then attempt the in-session switch.
+      writeGlobalSettings({ agent: { model: modelId } })
+      const result = await setModel(id, modelId)
+      if (!result.ok) return error(res, 500, result.error)
+      json(res, 200, result)
     },
   },
   {

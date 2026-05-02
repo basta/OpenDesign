@@ -410,14 +410,29 @@ describe('PATCH /api/settings/global', () => {
     expect(res.status).toBe(200)
     const body = await getJson(res)
     expect(body.agent.provider).toBe('gemini')
-    expect(body.agent.model).toBe('claude-sonnet-4-6') // default preserved
+    // Provider switched without an explicit model: server resets to the new
+    // provider's first fallback to avoid a mismatched (provider, model) pair.
+    expect(body.agent.model).toBe('gemini-2.5-pro')
     expect(body.canvas.snapPx).toBe(9)
 
     const onDisk = JSON.parse(
       fs.readFileSync(path.join(tmpHome, '.opendesign', 'settings.json'), 'utf-8'),
     )
     expect(onDisk.agent.provider).toBe('gemini')
+    expect(onDisk.agent.model).toBe('gemini-2.5-pro')
     expect(onDisk.canvas.snapPx).toBe(9)
+  })
+
+  test('preserves explicit model when switching provider', async () => {
+    const res = await fetch(`${baseUrl}/api/settings/global`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ agent: { provider: 'gemini', model: 'gemini-2.5-flash' } }),
+    })
+    expect(res.status).toBe(200)
+    const body = await getJson(res)
+    expect(body.agent.provider).toBe('gemini')
+    expect(body.agent.model).toBe('gemini-2.5-flash')
   })
 
   test('rejects non-object body', async () => {

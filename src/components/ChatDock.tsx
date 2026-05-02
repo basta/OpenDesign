@@ -10,6 +10,7 @@ import {
   type PermissionOption,
   type ToolCallUpdate,
 } from '../lib/chat'
+import { useAgentModels } from '../hooks/useAgentModels'
 
 interface Props {
   projectId: string
@@ -190,6 +191,7 @@ export function ChatDock({ projectId, frameIds, onClose, onJumpToFrame }: Props)
   }, [projectId, flush])
 
   const view = useMemo(() => computeViewModel(events), [events])
+  const agentModels = useAgentModels(projectId)
 
   // Track scroll position so we only auto-stick to bottom when the user
   // hasn't scrolled up to read history.
@@ -266,6 +268,7 @@ export function ChatDock({ projectId, frameIds, onClose, onJumpToFrame }: Props)
           <span style={{ fontSize: 11, color: '#888', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {projectId}
           </span>
+          <ModelChip models={agentModels} />
           {view.usage && <ContextChip usage={view.usage} />}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -363,6 +366,40 @@ export function ChatDock({ projectId, frameIds, onClose, onJumpToFrame }: Props)
         </div>
       </footer>
     </aside>
+  )
+}
+
+function ModelChip({ models }: { models: ReturnType<typeof useAgentModels> }) {
+  const { state, setModel } = models
+  const [busy, setBusy] = useState(false)
+  const current = state?.currentModelId
+  if (!state || state.availableModels.length === 0) return null
+
+  return (
+    <select
+      value={current ?? ''}
+      disabled={busy}
+      onChange={async e => {
+        const next = e.target.value
+        if (!next || next === current) return
+        setBusy(true)
+        try {
+          await setModel(next)
+        } catch {
+          // error surfaces via agent_error event
+        } finally {
+          setBusy(false)
+        }
+      }}
+      title={state.source === 'fallback'
+        ? 'Model (agent fallback list — start a chat to discover real list)'
+        : `Model · ${state.availableModels.length} available`}
+      style={modelChipStyle}
+    >
+      {state.availableModels.map(m => (
+        <option key={m.modelId} value={m.modelId}>{m.name}</option>
+      ))}
+    </select>
   )
 }
 
@@ -765,6 +802,21 @@ const iconBtnStyle: React.CSSProperties = {
   lineHeight: 1,
   color: '#666',
   padding: '0 4px',
+}
+const modelChipStyle: React.CSSProperties = {
+  fontSize: 10,
+  color: '#444',
+  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+  padding: '1px 5px',
+  background: '#f4f4f2',
+  border: '1px solid transparent',
+  borderRadius: 3,
+  cursor: 'pointer',
+  flexShrink: 0,
+  maxWidth: 140,
+  appearance: 'none',
+  WebkitAppearance: 'none',
+  MozAppearance: 'none',
 }
 const bannerStyle = (bg: string, border: string, color: string): React.CSSProperties => ({
   margin: '8px 12px 0',
