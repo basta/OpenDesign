@@ -135,7 +135,20 @@ function buildClient(channel: Channel, projectId: string): acp.Client {
       }
       const resolved = resolveProjectPath(projectId, params.path)
       if (!resolved) throw new Error(`Path outside project: ${params.path}`)
-      let content = await fs.promises.readFile(resolved, 'utf-8')
+      let content: string
+      try {
+        content = await fs.promises.readFile(resolved, 'utf-8')
+      } catch (err) {
+        // Gemini's write_file tool pre-reads the target via fs/read_text_file
+        // for its diff preview and aborts the whole tool call on any error
+        // (including not-found). Treating missing files as empty unblocks it
+        // without affecting Claude Code / OpenCode.
+        if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+          content = ''
+        } else {
+          throw err
+        }
+      }
       if (params.line !== undefined && params.line !== null) {
         const lines = content.split('\n')
         const start = Math.max(0, params.line - 1)
