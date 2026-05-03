@@ -1,4 +1,6 @@
-# Frameground
+<p align="center">
+  <img src="docs/logo.png" alt="Frameground" width="640" />
+</p>
 
 An open-source, filesystem-native design tool that any AI coding agent can drive. Each frame is a self-contained HTML file; you drag them around, resize them, and edit them from either the canvas or your text editor — changes sync both ways.
 
@@ -7,7 +9,7 @@ An alternative to closed-source, cloud-hosted tools like Claude Design and Googl
 Built on React, [`@xyflow/react`](https://reactflow.dev), and Vite.
 
 <p align="center">
-  <img src="docs/canvas.png" alt="Frameground canvas" />
+  <video src="site/media/hero.mp4" controls muted playsinline poster="site/media/hero-poster.jpg" width="100%"></video>
   <br />
   <img src="docs/skill-invocation.png" alt="Invoking the /frame skill in Claude Code" />
 </p>
