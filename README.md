@@ -10,12 +10,6 @@ Built on React, [`@xyflow/react`](https://reactflow.dev), and Vite.
 
 https://github.com/user-attachments/assets/c8775e97-ca1c-497f-ae55-d7cc3dbb3d30
 
-<p align="center">
-  <img src="docs/canvas.png" alt="Frameground canvas" />
-  <br />
-  <img src="docs/skill-invocation.png" alt="Invoking the /frame skill in Claude Code" />
-</p>
-
 ## Why
 
 Existing design tools store your work in a proprietary format. Frameground stores each frame as a plain HTML file on disk. That means:
@@ -43,6 +37,20 @@ PROJECTS_ROOT=/path/to/your/projects npm run dev
 ```
 
 Defaults to `./projects/` (gitignored).
+
+## Examples
+
+<p align="center">
+  <img src="docs/skill-invocation.png" alt="Invoking the /frame skill in Claude Code" />
+  <br />
+  <em>Invoking the <code>/frame</code> skill from Claude Code.</em>
+</p>
+
+<p align="center">
+  <img src="docs/canvas.png" alt="Frameground canvas with rendered frames" />
+  <br />
+  <em>Frames rendered on the infinite canvas.</em>
+</p>
 
 ## How it works
 
