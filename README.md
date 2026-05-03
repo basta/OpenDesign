@@ -8,11 +8,7 @@ An alternative to closed-source, cloud-hosted tools like Claude Design and Googl
 
 Built on React, [`@xyflow/react`](https://reactflow.dev), and Vite.
 
-<p align="center">
-  <a href="site/media/hero.mp4"><img src="site/media/hero-poster.jpg" alt="Frameground demo — click to play" width="100%" /></a>
-  <br />
-  <em>Click to play the demo video</em>
-</p>
+https://github.com/user-attachments/assets/c8775e97-ca1c-497f-ae55-d7cc3dbb3d30
 
 <p align="center">
   <img src="docs/canvas.png" alt="Frameground canvas" />
