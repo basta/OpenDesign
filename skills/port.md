@@ -1,13 +1,13 @@
 ---
 name: port
-description: Port an existing app's screens into an OpenDesign project as one frame per screen so they can be redesigned. Use when the user wants to bring an existing codebase into OpenDesign.
+description: Port an existing app's screens into a Frameground project as one frame per screen so they can be redesigned. Use when the user wants to bring an existing codebase into Frameground.
 argument-hint: [source-path] [project-name] [--redesign] [--append]
 allowed-tools: Read Write Edit Bash(curl *) Bash(ls *) Glob Agent
 ---
 
-# Port an existing app into OpenDesign
+# Port an existing app into Frameground
 
-Point this skill at a source directory; get back an OpenDesign project with one frame per screen. Frames are inlined HTML snapshots meant for **redesign** — no round-trip back to the source app.
+Point this skill at a source directory; get back a Frameground project with one frame per screen. Frames are inlined HTML snapshots meant for **redesign** — no round-trip back to the source app.
 
 You orchestrate the work. You launch subagents but do not port screens yourself.
 
@@ -52,7 +52,7 @@ Prompt template:
 
 ```
 Analyze the codebase at <sourcePath>. You are NOT writing any code.
-Return a structured report for porting it into an OpenDesign canvas — one
+Return a structured report for porting it into a Frameground canvas — one
 frame per screen. Keep the whole report under 800 words.
 
 Return these sections, in order, using these exact headings:
@@ -222,7 +222,7 @@ Then launch **N subagents in parallel** — one per screen — in a **single mes
 Prompt template (one per screen):
 
 ```
-You are porting a single screen from an existing app into an OpenDesign frame.
+You are porting a single screen from an existing app into a Frameground frame.
 
 Source: <sourcePath>
 Files for this screen: <screen.sourceFiles>
@@ -247,7 +247,7 @@ Your job:
 1. Read the listed source files (and anything they directly reference for this
    screen — shared layout, a stylesheet, a component).
 2. Produce a single fully self-contained HTML file that visually represents
-   this screen on the OpenDesign canvas:
+   this screen on the Frameground canvas:
    - Inline all CSS in a <style> block; inline any JS in <script>.
    - <meta charset="UTF-8"> and <meta name="viewport" content="width=device-width, initial-scale=1">.
    - No external asset URLs except Google Fonts (if DESIGN.md calls for them)
@@ -259,7 +259,7 @@ Your job:
 3. Apply DESIGN.md's typography, color, motion, and composition rules. If the
    source used different fonts/colors, OVERRIDE them with DESIGN.md's choices
    (this is a redesign-ready port, not a pixel-perfect clone).
-4. POST the result to the OpenDesign API to register the frame atomically:
+4. POST the result to the Frameground API to register the frame atomically:
 
    curl -s -X POST http://localhost:5173/api/projects/<projectName>/frames \
      -H 'Content-Type: application/json' \
@@ -301,6 +301,6 @@ Canvas picks up each POSTed frame via SSE; no refresh needed.
 
 ## Non-goals
 
-- No round-trip: edits made in OpenDesign don't flow back to the source app.
+- No round-trip: edits made in Frameground don't flow back to the source app.
 - No JS behavior preservation: ported frames are visual snapshots for redesign, not functional clones.
 - No asset copying: external images/fonts must be reachable by URL or inlined as SVG/base64; local files in the source app are not mirrored into the project directory.

@@ -111,9 +111,9 @@ export function SettingsPanel({ projectId, settings, design, frameCount, onClose
       </div>
 
       <footer style={footerStyle}>
-        <span>OpenDesign 0.1.0-alpha</span>
+        <span>Frameground 0.1.0-alpha</span>
         <span>
-          <a href="https://github.com/basta/OpenDesign" target="_blank" rel="noopener noreferrer" style={linkStyle}>
+          <a href="https://github.com/basta/frameground" target="_blank" rel="noopener noreferrer" style={linkStyle}>
             GitHub
           </a>
         </span>

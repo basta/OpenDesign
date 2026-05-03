@@ -7,7 +7,7 @@ allowed-tools: Read Write Edit Bash(curl *) Bash(ls *) Glob Agent
 
 # Generate alternative designs for a frame
 
-Spin up N parallel takes on a single frame — side by side on the OpenDesign canvas — so the user can eyeball which one wins. Two flavors of comparison:
+Spin up N parallel takes on a single frame — side by side on the Frameground canvas — so the user can eyeball which one wins. Two flavors of comparison:
 
 - **Execution shopping** — DESIGN.md is filled; all alternatives respect the committed aesthetic but vary in layout, composition, and copy hierarchy.
 - **Direction shopping** — DESIGN.md is empty *or* the user passed `--wild`; each alternative commits to a *different* aesthetic direction.
@@ -89,7 +89,7 @@ In a **single message**, make N `Agent` tool calls with `subagent_type: "general
 Prompt template (one per alt):
 
 ```
-You are producing one of N parallel design alternatives for an OpenDesign frame.
+You are producing one of N parallel design alternatives for a Frameground frame.
 You will NOT see the other alternatives. Your job is to commit fully to the hint
 assigned below and produce something distinctive.
 

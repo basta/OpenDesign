@@ -1,8 +1,8 @@
 ## What is this
 
-OpenDesign is a Figma-like design tool built on React Flow (`@xyflow/react`). The canvas hosts "frames" — each frame renders a self-contained HTML file via an iframe. Work is organized into **projects**; each project is a subdirectory under `PROJECTS_ROOT` with its own manifest, layout, and frames.
+Frameground is a Figma-like design tool built on React Flow (`@xyflow/react`). The canvas hosts "frames" — each frame renders a self-contained HTML file via an iframe. Work is organized into **projects**; each project is a subdirectory under `PROJECTS_ROOT` with its own manifest, layout, and frames.
 
-The intended workflow: the user describes a frame, Claude writes it to disk (or posts it to the OpenDesign HTTP API), and the canvas picks it up via the file watcher.
+The intended workflow: the user describes a frame, Claude writes it to disk (or posts it to the Frameground HTTP API), and the canvas picks it up via the file watcher.
 
 ## Commands
 
@@ -66,7 +66,7 @@ The `/frontend-design` skill (defined in `.claude/skills/frontend-design/SKILL.m
 
 ## Skill: `/port`
 
-The `/port` skill (defined in `.claude/skills/port/SKILL.md` and `skills/port.md`) ports an existing app's screens into a new OpenDesign project in one shot — one frame per screen. It launches an Explore subagent to identify screens and extract aesthetic signals, writes populated `PROJECT.md` / `DESIGN.md` / `FEEL.md`, then spawns parallel porting subagents that POST each frame via the HTTP API. Frames are inlined snapshots meant for redesign; no round-trip back to the source app. Supports `--redesign` (commits a fresh direction via `/frontend-design`) and `--append` (extend an existing project).
+The `/port` skill (defined in `.claude/skills/port/SKILL.md` and `skills/port.md`) ports an existing app's screens into a new Frameground project in one shot — one frame per screen. It launches an Explore subagent to identify screens and extract aesthetic signals, writes populated `PROJECT.md` / `DESIGN.md` / `FEEL.md`, then spawns parallel porting subagents that POST each frame via the HTTP API. Frames are inlined snapshots meant for redesign; no round-trip back to the source app. Supports `--redesign` (commits a fresh direction via `/frontend-design`) and `--append` (extend an existing project).
 
 ## Skill: `/alternatives`
 

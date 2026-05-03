@@ -1,4 +1,4 @@
-# OpenDesign
+# Frameground
 
 An open-source, filesystem-native design tool that any AI coding agent can drive. Each frame is a self-contained HTML file; you drag them around, resize them, and edit them from either the canvas or your text editor — changes sync both ways.
 
@@ -7,14 +7,14 @@ An alternative to closed-source, cloud-hosted tools like Claude Design and Googl
 Built on React, [`@xyflow/react`](https://reactflow.dev), and Vite.
 
 <p align="center">
-  <img src="docs/canvas.png" alt="OpenDesign canvas" />
+  <img src="docs/canvas.png" alt="Frameground canvas" />
   <br />
   <img src="docs/skill-invocation.png" alt="Invoking the /frame skill in Claude Code" />
 </p>
 
 ## Why
 
-Existing design tools store your work in a proprietary format. OpenDesign stores each frame as a plain HTML file on disk. That means:
+Existing design tools store your work in a proprietary format. Frameground stores each frame as a plain HTML file on disk. That means:
 
 - Your favorite AI coding agent can create, edit, and port frames directly — no plugin API, no headless browser.
 - Frames render real code. What you see on the canvas is what ships.
@@ -23,8 +23,8 @@ Existing design tools store your work in a proprietary format. OpenDesign stores
 ## Quickstart
 
 ```bash
-git clone https://github.com/basta/OpenDesign.git
-cd OpenDesign
+git clone https://github.com/basta/frameground.git
+cd frameground
 npm install
 npm run dev
 ```
@@ -90,7 +90,7 @@ Five [Claude Code](https://claude.ai/code) skills live in `.claude/skills/` (mir
 
 - **`/frame`** — create or update a single frame. Reads `PROJECT.md`/`DESIGN.md`/`FEEL.md`, picks a non-overlapping position, writes the HTML, and updates the manifest.
 - **`/frontend-design`** — design advisor. Commits a project to a bold aesthetic direction (typography, color, motion, composition). Invoked by `/frame` for fresh projects; can also be used standalone.
-- **`/port`** — port an existing codebase into an OpenDesign project, one frame per screen. Explores the source, extracts aesthetic signals, seeds `PROJECT.md`/`DESIGN.md`/`FEEL.md`, then spawns parallel subagents to port each screen. Supports `--redesign` (fresh direction) and `--append` (extend existing project).
+- **`/port`** — port an existing codebase into a Frameground project, one frame per screen. Explores the source, extracts aesthetic signals, seeds `PROJECT.md`/`DESIGN.md`/`FEEL.md`, then spawns parallel subagents to port each screen. Supports `--redesign` (fresh direction) and `--append` (extend existing project).
 - **`/alternatives`** — generate N parallel design takes on a single frame for side-by-side comparison. Auto-picks mode: *execution-shopping* (layout/composition variants within the committed aesthetic) when `DESIGN.md` is filled, or *direction-shopping* (each alt commits its own aesthetic) when empty. `--wild` forces direction-shopping; `--count N` controls how many (default 3).
 - **`/suggest`** — generate AI-curated design tweak suggestions (palette or typography variants). Drops named variants into the Tokens panel where you can preview and apply them with one click.
 

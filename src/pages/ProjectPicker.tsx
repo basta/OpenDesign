@@ -30,7 +30,7 @@ export function ProjectPicker() {
 
   return (
     <div style={{ maxWidth: 640, margin: '80px auto', padding: 24, fontFamily: '-apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif' }}>
-      <h1 style={{ fontSize: 28, marginBottom: 24 }}>OpenDesign</h1>
+      <h1 style={{ fontSize: 28, marginBottom: 24 }}>Frameground</h1>
 
       <section style={{ marginBottom: 32 }}>
         <h2 style={{ fontSize: 16, color: '#666', marginBottom: 12 }}>Projects</h2>

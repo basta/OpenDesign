@@ -43,7 +43,7 @@ Remember: Claude is capable of extraordinary creative work. Don't hold back, sho
 
 ## Output contract when called from the `frame` or `port` skill
 
-When invoked to seed or update an OpenDesign project's design files, return three artifacts the caller pastes in:
+When invoked to seed or update a Frameground project's design files, return three artifacts the caller pastes in:
 
 **1. YAML front-matter for DESIGN.md** (goes between the `---` fences at the top). Fill all five token groups when possible. Follow Google's `design.md` spec — this shape is authoritative and gets linted.
 

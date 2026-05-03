@@ -1,13 +1,13 @@
 ---
 name: suggest
-description: Generate AI-curated design tweak suggestions (palette / typography variants) for an OpenDesign project. Drops three named variants into the project's suggestions drawer where the user can preview and apply them with one click.
+description: Generate AI-curated design tweak suggestions (palette / typography variants) for a Frameground project. Drops three named variants into the project's suggestions drawer where the user can preview and apply them with one click.
 argument-hint: [project] [tweak] [optional prompt] [--source name]
 allowed-tools: Read Write Edit Bash(curl *) Bash(ls *) Bash(date *) Glob
 ---
 
 # Suggest design tweaks for a project
 
-Write three coordinated, opinionated variants for one slice of an OpenDesign project's design tokens (palette or typography). Each variant lands in the project's Tokens panel under "Suggestions" as a clickable card — the user previews instantly and applies the one they like as scratch overrides.
+Write three coordinated, opinionated variants for one slice of a Frameground project's design tokens (palette or typography). Each variant lands in the project's Tokens panel under "Suggestions" as a clickable card — the user previews instantly and applies the one they like as scratch overrides.
 
 This skill produces *suggestions*, not commits. The user decides what (if anything) to push into DESIGN.md by clicking "Commit" in the panel.
 

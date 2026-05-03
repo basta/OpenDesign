@@ -1,13 +1,13 @@
 ---
 name: frame
-description: Create or update an HTML frame on the OpenDesign canvas. Use when the user asks to create a screen, page, component, or frame for their app.
+description: Create or update an HTML frame on the Frameground canvas. Use when the user asks to create a screen, page, component, or frame for their app.
 argument-hint: [project] [description of what the frame should show]
 allowed-tools: Read Write Edit Bash(curl *) Bash(ls *) Bash(node ./node_modules/@google/design.md/*) Glob
 ---
 
-# Create or update an OpenDesign Frame
+# Create or update a Frameground Frame
 
-OpenDesign organizes work into **projects**. Each project lives in its own directory and contains:
+Frameground organizes work into **projects**. Each project lives in its own directory and contains:
 
 ```
 <project-dir>/
@@ -18,7 +18,7 @@ OpenDesign organizes work into **projects**. Each project lives in its own direc
   <frame-id>.html          one file per frame, fully self-contained
 ```
 
-You edit these files directly with Read/Write/Edit. The OpenDesign dev server watches the filesystem and pushes changes to the canvas over SSE — no API calls needed for frame content.
+You edit these files directly with Read/Write/Edit. The Frameground dev server watches the filesystem and pushes changes to the canvas over SSE — no API calls needed for frame content.
 
 ## Step 1: Find the project
 
