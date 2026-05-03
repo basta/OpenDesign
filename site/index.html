@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>OpenDesign — The open source AI design tool.</title>
-<meta name="description" content="OpenDesign is an open-source, filesystem-native design tool that works with any coding agent. An alternative to Claude Design and Google Stitch." />
+<title>Frameground — The open source AI design tool.</title>
+<meta name="description" content="Frameground is an open-source, filesystem-native design tool that works with any coding agent. An alternative to Claude Design and Google Stitch." />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;600&family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root {
   --colors-paper: #f3f2ed;
@@ -17,10 +17,10 @@
   --colors-muted: #908a95;
   --colors-rule: #d9d6d1;
   --colors-rule-soft: #e3e0da;
-  --colors-accent: #6a2b55;
-  --colors-accent-soft: rgba(106, 43, 85, 0.08);
-  --colors-accent-glow: rgba(106, 43, 85, 0.15);
-  --colors-accent-fade: rgba(106, 43, 85, 0.4);
+  --colors-accent: #F59E0B;
+  --colors-accent-soft: rgba(245, 158, 11, 0.08);
+  --colors-accent-glow: rgba(245, 158, 11, 0.15);
+  --colors-accent-fade: rgba(245, 158, 11, 0.4);
   --colors-dot: rgba(28, 23, 32, 0.08);
 
   --typography-display-font-family: "Space Grotesk";
@@ -69,25 +69,22 @@ body::before {
 .wordmark {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-  font-family: var(--typography-body-font-family), sans-serif;
-  font-weight: 600;
-  font-size: 17px;
-  letter-spacing: -0.015em;
+  gap: 9px;
+  font-family: "Geist Mono", ui-monospace, monospace;
+  font-weight: 500;
+  font-size: 16px;
+  letter-spacing: -0.035em;
+  color: var(--colors-ink);
+  text-transform: lowercase;
+  text-decoration: none;
+}
+.wordmark .mark {
+  width: 22px;
+  height: auto;
+  flex-shrink: 0;
   color: var(--colors-ink);
 }
-.wordmark .glyph {
-  width: 14px; height: 14px;
-  border: 1px solid var(--colors-ink);
-  position: relative;
-}
-.wordmark .glyph::after {
-  content: "";
-  position: absolute;
-  left: 3px; top: 3px;
-  width: 6px; height: 6px;
-  background: var(--colors-accent);
-}
+.wordmark .ground { color: var(--colors-accent); }
 .nav-links {
   display: flex;
   gap: 28px;
@@ -582,7 +579,7 @@ h1.head strong {
   color: var(--colors-ink);
 }
 
-/* ── What is OpenDesign ── */
+/* ── What is Frameground ── */
 .what-body {
   display: flex;
   flex-direction: column;
@@ -827,8 +824,12 @@ h1.head strong {
 <div class="stage">
   <nav class="topbar reveal r1">
     <div class="wordmark">
-      <span class="glyph"></span>
-      OpenDesign
+      <svg class="mark" viewBox="0 0 80 64" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="square" stroke-linejoin="miter">
+        <polyline points="16,12 4,32 16,52"/>
+        <polyline points="64,12 76,32 64,52"/>
+        <rect x="26" y="22" width="28" height="20" fill="var(--colors-accent)" stroke="none"/>
+      </svg>
+      <span>frame<span class="ground">ground</span></span>
     </div>
     <div class="nav-links">
       <a class="navlink" href="#what">About</a>
@@ -862,8 +863,8 @@ h1.head strong {
       <div class="connector-line"></div>
     </div>
 
-    <div class="canvas-mock reveal r7" aria-label="A zoomed-out view of the OpenDesign canvas showing the frame produced by the prompt">
-      <span class="mock-meta"><span class="mm-dot"></span>opendesign &middot; canvas</span>
+    <div class="canvas-mock reveal r7" aria-label="A zoomed-out view of the Frameground canvas showing the frame produced by the prompt">
+      <span class="mock-meta"><span class="mm-dot"></span>frameground &middot; canvas</span>
       <span class="mock-zoom">zoom 38%</span>
 
       <svg id="connector-svg" class="mock-connector" style="left: 0; top: 0;" width="100%" height="100%" preserveAspectRatio="none" viewBox="0 0 1120 400">
@@ -974,12 +975,12 @@ h1.head strong {
     </div>
   </main>
 
-  <!-- ── What is OpenDesign ── -->
+  <!-- ── What is Frameground ── -->
   <section class="section" id="what">
-    <div class="section-eyebrow">What is OpenDesign</div>
+    <div class="section-eyebrow">What is Frameground</div>
     <div class="what-body">
       <h2>A design tool your coding agent can drive.</h2>
-      <p>OpenDesign is an <strong>open-source Figma alternative</strong> built for AI workflows. Describe a screen, and your agent writes an HTML file to disk. OpenDesign watches the filesystem, renders it as an iframe, and pins it to an infinite canvas.</p>
+      <p>Frameground is an <strong>open-source Figma alternative</strong> built for AI workflows. Describe a screen, and your agent writes an HTML file to disk. Frameground watches the filesystem, renders it as an iframe, and pins it to an infinite canvas.</p>
       <p>No accounts. No cloud. No proprietary format. <strong>Your designs are files on your machine</strong> &mdash; version them with git, edit them with vim, review them in a PR.</p>
     </div>
 
@@ -997,7 +998,7 @@ h1.head strong {
       <div class="pillar">
         <div class="pillar-label">03 &mdash; Agent-Agnostic</div>
         <h3>If it can write a file, it can design.</h3>
-        <p>OpenDesign works with any coding agent. Not locked to one model or one provider. Bring whatever tool you already use.</p>
+        <p>Frameground works with any coding agent. Not locked to one model or one provider. Bring whatever tool you already use.</p>
       </div>
     </div>
   </section>
@@ -1026,7 +1027,7 @@ h1.head strong {
   <section class="section" id="agents">
     <div class="section-eyebrow">Bring Your Own Agent</div>
     <h2>Works with any coding agent.</h2>
-    <p>OpenDesign watches your project directory. Any agent that can write an HTML file &mdash; or hit a local HTTP endpoint &mdash; can put a frame on the canvas. No plugins, no integrations, no setup.</p>
+    <p>Frameground watches your project directory. Any agent that can write an HTML file &mdash; or hit a local HTTP endpoint &mdash; can put a frame on the canvas. No plugins, no integrations, no setup.</p>
 
     <div class="agent-grid">
       <span class="agent-tag">Claude Code</span>
@@ -1045,13 +1046,13 @@ h1.head strong {
   <section class="section" id="compare">
     <div class="section-eyebrow">How it Compares</div>
     <h2>Different tools, different values.</h2>
-    <p>Claude Design and Google Stitch are impressive. They're also closed-source, cloud-hosted, and tied to a single model. OpenDesign takes a different approach.</p>
+    <p>Claude Design and Google Stitch are impressive. They're also closed-source, cloud-hosted, and tied to a single model. Frameground takes a different approach.</p>
 
     <table class="compare-table">
       <thead>
         <tr>
           <th></th>
-          <th class="highlight">OpenDesign</th>
+          <th class="highlight">Frameground</th>
           <th>Claude Design</th>
           <th>Google Stitch</th>
         </tr>
@@ -1104,7 +1105,7 @@ h1.head strong {
 
     <div class="faq-list">
       <div class="faq-item">
-        <button class="faq-q">What is OpenDesign? <span class="faq-icon">+</span></button>
+        <button class="faq-q">What is Frameground? <span class="faq-icon">+</span></button>
         <div class="faq-a">
           <p>An open-source design tool that renders AI-generated HTML frames on an infinite canvas. Think of it as a Figma-like surface that any coding agent can write to &mdash; by creating files on disk or calling a local HTTP API.</p>
         </div>
@@ -1112,19 +1113,19 @@ h1.head strong {
       <div class="faq-item">
         <button class="faq-q">How is this different from Claude Design or Google Stitch? <span class="faq-icon">+</span></button>
         <div class="faq-a">
-          <p>Those are great products, but they're closed-source, cloud-only, and locked to a single AI provider. OpenDesign is MIT-licensed, runs locally, and works with any agent that can write a file. Your designs stay on your filesystem as plain HTML &mdash; no proprietary formats.</p>
+          <p>Those are great products, but they're closed-source, cloud-only, and locked to a single AI provider. Frameground is MIT-licensed, runs locally, and works with any agent that can write a file. Your designs stay on your filesystem as plain HTML &mdash; no proprietary formats.</p>
         </div>
       </div>
       <div class="faq-item">
         <button class="faq-q">Which AI models or agents does it work with? <span class="faq-icon">+</span></button>
         <div class="faq-a">
-          <p>All of them. OpenDesign watches your project directory for file changes and exposes a local HTTP API. Any tool that can write an HTML file &mdash; Claude Code, Cursor, Windsurf, Cline, aider, a bash script &mdash; can create frames on the canvas.</p>
+          <p>All of them. Frameground watches your project directory for file changes and exposes a local HTTP API. Any tool that can write an HTML file &mdash; Claude Code, Cursor, Windsurf, Cline, aider, a bash script &mdash; can create frames on the canvas.</p>
         </div>
       </div>
       <div class="faq-item">
         <button class="faq-q">Do I need an account or API key? <span class="faq-icon">+</span></button>
         <div class="faq-a">
-          <p>No. OpenDesign itself requires no account, no API key, and no internet connection. You bring your own coding agent &mdash; however you've already set that up is all you need.</p>
+          <p>No. Frameground itself requires no account, no API key, and no internet connection. You bring your own coding agent &mdash; however you've already set that up is all you need.</p>
         </div>
       </div>
       <div class="faq-item">
@@ -1144,7 +1145,7 @@ h1.head strong {
 
   <!-- ── Footer ── -->
   <footer class="footer">
-    <div class="footer-left">OpenDesign &middot; MIT License</div>
+    <div class="footer-left">Frameground &middot; MIT License</div>
     <div class="footer-right">
       <a href="https://github.com/basta/OpenDesign">GitHub</a>
       <a href="quickstart.html">Quickstart</a>
